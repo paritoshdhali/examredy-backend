@@ -4,19 +4,43 @@ const { query } = require('../db');
 const { verifyToken, admin } = require('../middleware/authMiddleware');
 const { hashPassword, comparePassword, generateToken } = require('../utils/helpers');
 
+// @route   GET /api/admin/diagnostic
+// @desc    Check DB status and admin existence (Diagnostic only)
+router.get('/diagnostic', async (req, res) => {
+    try {
+        const result = await query('SELECT id, username, email, role, (password IS NOT NULL) as has_password, length(password) as pass_len FROM users WHERE email = $1', ['admin@examredy.in']);
+        res.json({
+            database: 'Connected',
+            adminStatus: result.rows.length > 0 ? 'Found' : 'Not Found',
+            adminDetails: result.rows[0] || null,
+            env: {
+                node_env: process.env.NODE_ENV,
+                has_jwt_secret: !!process.env.JWT_SECRET
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // @route   POST /api/admin/login
 // @desc    Admin Login
 // @access  Public
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+    console.log(`[AUTH-DEBUG] Login attempt for: ${email}`);
+
     try {
+        // Log query start
         const result = await query('SELECT id, username, email, password, role FROM users WHERE email = $1', [email]);
         const user = result.rows[0];
 
         if (!user) {
             console.log(`[AUTH] Admin login attempt failed: User not found (${email})`);
-            return res.status(401).json({ message: 'Invalid admin credentials' });
+            return res.status(401).json({ message: 'Invalid admin credentials (User not found)' });
         }
+
+        console.log(`[AUTH-DEBUG] User found: ${user.email}, Role: ${user.role}`);
 
         if (user.role !== 'admin') {
             console.log(`[AUTH] Admin login attempt failed: User ${email} has role ${user.role}`);
@@ -24,9 +48,11 @@ router.post('/login', async (req, res) => {
         }
 
         const isMatch = await comparePassword(password, user.password);
+        console.log(`[AUTH-DEBUG] Password match result: ${isMatch}`);
+
         if (!isMatch) {
             console.log(`[AUTH] Admin login attempt failed: Password mismatch for ${email}`);
-            return res.status(401).json({ message: 'Invalid admin credentials' });
+            return res.status(401).json({ message: 'Invalid admin credentials (Password mismatch)' });
         }
 
         const token = generateToken(user.id, user.role, user.email);
