@@ -1,0 +1,83 @@
+const { query } = require('../db');
+const axios = require('axios');
+
+/**
+ * Generates MCQs using the active AI provider (primarily Google Gemini).
+ */
+const generateMCQInitial = async (topic, count = 5) => {
+    try {
+        // 1. Fetch active AI provider details
+        const providerRes = await query('SELECT * FROM ai_providers WHERE is_active = TRUE LIMIT 1');
+
+        if (providerRes.rows.length === 0 || !providerRes.rows[0].api_key) {
+            console.warn('No active AI provider or API key found. Falling back to mock.');
+            return fallbackMock(topic, count);
+        }
+
+        const provider = providerRes.rows[0];
+        const { api_key, model_name, base_url } = provider;
+
+        // 2. Prepare Prompt
+        const prompt = `Generate exactly ${count} multiple-choice questions (MCQs) about the topic: "${topic}". 
+        The output must be a valid JSON array of objects. Each object must have:
+        - "question": (string) The MCQ question.
+        - "options": (array of 4 strings) Four distinct options.
+        - "correct_option": (integer, 0-3) The index of the correct option.
+        - "explanation": (string) A detailed explanation of why the answer is correct.
+        - "subject": (string) Set as "${topic}".
+        - "chapter": (string) A logical chapter name related to the topic.
+        
+        Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.`;
+
+        // 3. API Call to Gemini
+        // Endpoint: {base_url}/{model}:generateContent?key={api_key}
+        const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
+
+        const response = await axios.post(endpoint, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json"
+            }
+        });
+
+        // 4. Parse Response
+        const responseText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!responseText) {
+            throw new Error('AI Provider returned an empty response');
+        }
+
+        try {
+            const parsedData = JSON.parse(responseText);
+            // Gemini sometimes wraps result in an object or array, normalize to array
+            const mcqs = Array.isArray(parsedData) ? parsedData : (parsedData.mcqs || parsedData.questions || []);
+            return mcqs.slice(0, count);
+        } catch (parseError) {
+            console.error('JSON Parse Error from AI:', responseText);
+            throw new Error('AI output was not valid JSON');
+        }
+
+    } catch (error) {
+        console.error('AI Service Error:', error.response?.data || error.message);
+        return fallbackMock(topic, count);
+    }
+};
+
+/**
+ * Fallback mock logic if AI fails or is not configured
+ */
+const fallbackMock = (topic, count) => {
+    return Array.from({ length: count }).map((_, i) => ({
+        question: `[MOCK] ${topic} practice question ${i + 1}?`,
+        options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+        correct_option: 0,
+        explanation: `This is a fallback mock explanation for ${topic}. Please check AI API configuration.`,
+        subject: topic,
+        chapter: 'General'
+    }));
+};
+
+module.exports = { generateMCQInitial };
