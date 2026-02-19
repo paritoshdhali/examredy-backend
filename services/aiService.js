@@ -123,28 +123,36 @@ const fallbackMockStructure = (type, context) => {
 };
 
 const generateSchoolBoards = async (stateName) => {
-    const prompt = `Return a list of real, officially recognized primary/secondary school education boards in the state of "${stateName}", India. (e.g., WBCHSE, CBSE, WBBSE, ICSE). 
-    Return exactly 10 boards if possible. Return only a JSON array of objects with a "name" key.
+    const prompt = `Return a list of REAL, officially recognized primary/secondary school education boards in the state of "${stateName}", India. 
+    Examples: WBCHSE, CBSE, WBBSE, ICSE, MSBSHSE, UPMSP.
+    - DO NOT generate placeholders like "Board 1" or "Board A".
+    - DO NOT use generic names.
+    - Return exactly 10 boards if possible. 
+    Return only a JSON array of objects with a "name" key.
     Example: [{"name": "CBSE"}, {"name": "WBBSE"}]
-    Return ONLY JSON.`;
+    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
     const boards = await fetchAIStructure('boards', prompt);
     return Array.isArray(boards) ? boards.map(b => typeof b === 'string' ? { name: b } : b) : [];
 };
 
 const generateSchoolSubjects = async (boardName, className, streamName) => {
-    const prompt = `Return a list of strictly syllabus-accurate subjects for ${className} ${streamName ? `(${streamName})` : ''} under the ${boardName} board in India.
+    const prompt = `Return a list of STRICTLY syllabus-accurate subjects for ${className} ${streamName ? `(${streamName})` : ''} under the REAL "${boardName}" education board in India.
+    - DO NOT use placeholders like "Subject 1".
+    - Use real academic subjects (e.g., Mathematics, Bengali, Physics, History).
     Return only a JSON array of objects with a "name" key.
     Example: [{"name": "Mathematics"}, {"name": "Physics"}]
-    Return ONLY JSON.`;
+    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
     const subjects = await fetchAIStructure('subjects', prompt);
     return Array.isArray(subjects) ? subjects.map(s => typeof s === 'string' ? { name: s } : s) : [];
 };
 
 const generateSchoolChapters = async (subjectName, boardName, className) => {
-    const prompt = `Return a list of officially correct chapters for the subject "${subjectName}" in ${className} of the ${boardName} board in India.
+    const prompt = `Return a list of OFFICIALLY CORRECT chapters for the subject "${subjectName}" in ${className} of the ${boardName} board in India.
+    - DO NOT use placeholders like "Chapter 1".
+    - Use real, specific chapter names from the authorized textbook syllabus.
     Return only a JSON array of objects with a "name" key.
     Example: [{"name": "Trigonometry"}, {"name": "Calculus"}]
-    Return ONLY JSON.`;
+    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
     const chapters = await fetchAIStructure('chapters', prompt);
     return Array.isArray(chapters) ? chapters.map(c => typeof c === 'string' ? { name: c } : c) : [];
 };

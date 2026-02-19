@@ -91,6 +91,30 @@ const preloadData = async () => {
             }
         }
 
+        // 4. Classes Preload (Requirement 3)
+        const classCount = await query('SELECT COUNT(*) FROM classes');
+        if (parseInt(classCount.rows[0].count) === 0) {
+            const defaultClasses = [
+                'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+                'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+                'Class 11', 'Class 12'
+            ];
+            for (const c of defaultClasses) {
+                await query(`INSERT INTO classes (name) VALUES ($1) ON CONFLICT (name) DO NOTHING;`, [c]);
+            }
+            console.log('✅ Classes Preloaded');
+        }
+
+        // 5. Streams Preload (Requirement 3)
+        const streamCount = await query('SELECT COUNT(*) FROM streams');
+        if (parseInt(streamCount.rows[0].count) === 0) {
+            const defaultStreams = ['Science', 'Commerce', 'Arts'];
+            for (const s of defaultStreams) {
+                await query(`INSERT INTO streams (name) VALUES ($1) ON CONFLICT (name) DO NOTHING;`, [s]);
+            }
+            console.log('✅ Streams Preloaded');
+        }
+
     } catch (err) {
         console.error('❌ Error preloading data:', err);
     }
@@ -305,6 +329,16 @@ const initDB = async () => {
         for (const [key, value] of Object.entries(siteDefaults)) {
             await query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING;`, [key, value]);
         }
+
+        // AI Fetch Logs (Requirement 6)
+        await query(`CREATE TABLE IF NOT EXISTS ai_fetch_logs (
+            id SERIAL PRIMARY KEY,
+            type VARCHAR(50) NOT NULL,
+            context TEXT,
+            status VARCHAR(20),
+            error_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
 
         // MCQ Pool
         await query(`

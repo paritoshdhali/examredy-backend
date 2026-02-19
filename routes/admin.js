@@ -423,61 +423,88 @@ router.put('/settings/payments/:provider', async (req, res) => {
 
 router.post('/ai-fetch/boards', async (req, res) => {
     const { state_id, state_name } = req.body;
+    const client = await pool.connect();
     try {
+        await client.query('BEGIN');
         const { generateSchoolBoards } = require('../services/aiService');
         const boards = await generateSchoolBoards(state_name);
 
         const savedBoards = [];
         for (const board of boards) {
-            const result = await query(
+            const result = await client.query(
                 'INSERT INTO boards (name, state_id, is_approved) VALUES ($1, $2, TRUE) ON CONFLICT (state_id, name) DO NOTHING RETURNING *',
                 [board.name, state_id]
             );
             if (result.rows[0]) savedBoards.push(result.rows[0]);
         }
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status) VALUES ('boards', $1, 'success')", [`State: ${state_name}`]);
+        await client.query('COMMIT');
         res.json({ message: 'Boards fetched successfully', data: savedBoards });
     } catch (e) {
+        await client.query('ROLLBACK');
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status, error_message) VALUES ('boards', $1, 'error', $2)", [`State: ${state_name}`, e.message]);
+        console.error('AI Board Fetch Error:', e);
         res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
     }
 });
 
 router.post('/ai-fetch/subjects', async (req, res) => {
     const { board_id, class_id, board_name, class_name, stream_id, stream_name } = req.body;
+    const client = await pool.connect();
     try {
+        await client.query('BEGIN');
         const { generateSchoolSubjects } = require('../services/aiService');
         const subjects = await generateSchoolSubjects(board_name, class_name, stream_name);
 
         const savedSubjects = [];
         for (const sub of subjects) {
-            const result = await query(
+            const result = await client.query(
                 'INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, is_approved) VALUES ($1, 1, $2, $3, $4, TRUE) ON CONFLICT (board_id, class_id, stream_id, name) DO NOTHING RETURNING *',
                 [sub.name, board_id, class_id, stream_id]
             );
             if (result.rows[0]) savedSubjects.push(result.rows[0]);
         }
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status) VALUES ('subjects', $1, 'success')", [`Board: ${board_name}, Class: ${class_name}`]);
+        await client.query('COMMIT');
         res.json({ message: 'Subjects fetched successfully', data: savedSubjects });
     } catch (e) {
+        await client.query('ROLLBACK');
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status, error_message) VALUES ('subjects', $1, 'error', $2)", [`Board: ${board_name}, Class: ${class_name}`, e.message]);
+        console.error('AI Subject Fetch Error:', e);
         res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
     }
 });
 
 router.post('/ai-fetch/chapters', async (req, res) => {
     const { subject_id, subject_name, board_name, class_name } = req.body;
+    const client = await pool.connect();
     try {
+        await client.query('BEGIN');
         const { generateSchoolChapters } = require('../services/aiService');
         const chapters = await generateSchoolChapters(subject_name, board_name, class_name);
 
         const savedChapters = [];
         for (const chap of chapters) {
-            const result = await query(
+            const result = await client.query(
                 'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
                 [chap.name, subject_id]
             );
             if (result.rows[0]) savedChapters.push(result.rows[0]);
         }
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status) VALUES ('chapters', $1, 'success')", [`Subject: ${subject_name}, Class: ${class_name}`]);
+        await client.query('COMMIT');
         res.json({ message: 'Chapters fetched successfully', data: savedChapters });
     } catch (e) {
+        await client.query('ROLLBACK');
+        await client.query("INSERT INTO ai_fetch_logs (type, context, status, error_message) VALUES ('chapters', $1, 'error', $2)", [`Subject: ${subject_name}, Class: ${class_name}`, e.message]);
+        console.error('AI Chapter Fetch Error:', e);
         res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
     }
 });
 
