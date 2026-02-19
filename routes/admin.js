@@ -309,18 +309,81 @@ router.post('/states', async (req, res) => {
     res.json(result.rows[0]);
 });
 
+// @route   PUT /api/admin/states/:id
+router.put('/states/:id', async (req, res) => {
+    const { name } = req.body;
+    await query('UPDATE states SET name = $1 WHERE id = $2', [name, req.params.id]);
+    res.json({ message: 'State updated' });
+});
+
+// @route   DELETE /api/admin/states/:id
+router.delete('/states/:id', async (req, res) => {
+    await query('DELETE FROM states WHERE id = $1', [req.params.id]);
+    res.json({ message: 'State deleted' });
+});
+
+// --- LANGUAGES ---
+
+// @route   GET /api/admin/languages
+router.get('/languages', async (req, res) => {
+    const result = await query('SELECT * FROM languages ORDER BY name ASC');
+    res.json(result.rows);
+});
+
+// @route   POST /api/admin/languages
+router.post('/languages', async (req, res) => {
+    const { name } = req.body;
+    const result = await query('INSERT INTO languages (name) VALUES ($1) RETURNING *', [name]);
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/languages/:id
+router.put('/languages/:id', async (req, res) => {
+    const { name } = req.body;
+    await query('UPDATE languages SET name = $1 WHERE id = $2', [name, req.params.id]);
+    res.json({ message: 'Language updated' });
+});
+
+// @route   DELETE /api/admin/languages/:id
+router.delete('/languages/:id', async (req, res) => {
+    await query('DELETE FROM languages WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Language deleted' });
+});
+
+// --- BOARDS ---
+
 // @route   GET /api/admin/boards
 router.get('/boards', async (req, res) => {
-    const result = await query('SELECT b.*, s.name as state_name FROM boards b JOIN states s ON b.state_id = s.id ORDER BY b.name ASC');
+    const result = await query(`
+        SELECT b.*, s.name as state_name 
+        FROM boards b 
+        LEFT JOIN states s ON b.state_id = s.id 
+        ORDER BY b.name ASC
+    `);
     res.json(result.rows);
 });
 
 // @route   POST /api/admin/boards
 router.post('/boards', async (req, res) => {
-    const { name, state_id } = req.body;
-    const result = await query('INSERT INTO boards (name, state_id) VALUES ($1, $2) RETURNING *', [name, state_id]);
+    const { name, state_id, is_active } = req.body;
+    const result = await query('INSERT INTO boards (name, state_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, state_id, is_active !== false]);
     res.json(result.rows[0]);
 });
+
+// @route   PUT /api/admin/boards/:id
+router.put('/boards/:id', async (req, res) => {
+    const { name, state_id, is_active } = req.body;
+    await query('UPDATE boards SET name = $1, state_id = $2, is_active = $3 WHERE id = $4', [name, state_id, is_active, req.params.id]);
+    res.json({ message: 'Board updated' });
+});
+
+// @route   DELETE /api/admin/boards/:id
+router.delete('/boards/:id', async (req, res) => {
+    await query('DELETE FROM boards WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Board deleted' });
+});
+
+// --- CLASSES ---
 
 // @route   GET /api/admin/classes
 router.get('/classes', async (req, res) => {
@@ -328,14 +391,191 @@ router.get('/classes', async (req, res) => {
     res.json(result.rows);
 });
 
+// @route   POST /api/admin/classes
+router.post('/classes', async (req, res) => {
+    const { name, is_active } = req.body;
+    const result = await query('INSERT INTO classes (name, is_active) VALUES ($1, $2) RETURNING *', [name, is_active !== false]);
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/classes/:id
+router.put('/classes/:id', async (req, res) => {
+    const { name, is_active } = req.body;
+    await query('UPDATE classes SET name = $1, is_active = $2 WHERE id = $3', [name, is_active, req.params.id]);
+    res.json({ message: 'Class updated' });
+});
+
+// @route   DELETE /api/admin/classes/:id
+router.delete('/classes/:id', async (req, res) => {
+    await query('DELETE FROM classes WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Class deleted' });
+});
+
+// --- STREAMS ---
+
+// @route   GET /api/admin/streams
+router.get('/streams', async (req, res) => {
+    const result = await query('SELECT * FROM streams ORDER BY name ASC');
+    res.json(result.rows);
+});
+
+// @route   POST /api/admin/streams
+router.post('/streams', async (req, res) => {
+    const { name, is_active } = req.body;
+    const result = await query('INSERT INTO streams (name, is_active) VALUES ($1, $2) RETURNING *', [name, is_active !== false]);
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/streams/:id
+router.put('/streams/:id', async (req, res) => {
+    const { name, is_active } = req.body;
+    await query('UPDATE streams SET name = $1, is_active = $2 WHERE id = $3', [name, is_active, req.params.id]);
+    res.json({ message: 'Stream updated' });
+});
+
+// @route   DELETE /api/admin/streams/:id
+router.delete('/streams/:id', async (req, res) => {
+    await query('DELETE FROM streams WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Stream deleted' });
+});
+
+// --- SUBJECTS ---
+
+// @route   GET /api/admin/subjects
+router.get('/subjects', async (req, res) => {
+    const result = await query(`
+        SELECT sub.*, b.name as board_name, c.name as class_name, str.name as stream_name
+        FROM subjects sub
+        LEFT JOIN boards b ON sub.board_id = b.id
+        LEFT JOIN classes c ON sub.class_id = c.id
+        LEFT JOIN streams str ON sub.stream_id = str.id
+        ORDER BY sub.name ASC
+    `);
+    res.json(result.rows);
+});
+
 // @route   POST /api/admin/subjects
 router.post('/subjects', async (req, res) => {
-    const { name, class_id, board_id, stream_id, semester_id } = req.body;
+    const { name, class_id, board_id, stream_id, semester_id, is_active } = req.body;
+    const result = await query(
+        'INSERT INTO subjects (name, class_id, board_id, stream_id, semester_id, is_active) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+        [name, class_id, board_id, stream_id, semester_id, is_active !== false]
+    );
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/subjects/:id
+router.put('/subjects/:id', async (req, res) => {
+    const { name, class_id, board_id, stream_id, semester_id, is_active } = req.body;
+    await query(
+        'UPDATE subjects SET name=$1, class_id=$2, board_id=$3, stream_id=$4, semester_id=$5, is_active=$6 WHERE id=$7',
+        [name, class_id, board_id, stream_id, semester_id, is_active, req.params.id]
+    );
+    res.json({ message: 'Subject updated' });
+});
+
+// @route   DELETE /api/admin/subjects/:id
+router.delete('/subjects/:id', async (req, res) => {
+    await query('DELETE FROM subjects WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Subject deleted' });
+});
+
+// --- CHAPTERS ---
+
+// @route   GET /api/admin/chapters
+router.get('/chapters', async (req, res) => {
+    const result = await query(`
+        SELECT ch.*, sub.name as subject_name
+        FROM chapters ch
+        LEFT JOIN subjects sub ON ch.subject_id = sub.id
+        ORDER BY ch.name ASC
+    `);
+    res.json(result.rows);
+});
+
+// @route   POST /api/admin/chapters
+router.post('/chapters', async (req, res) => {
+    const { name, subject_id, is_active } = req.body;
+    const result = await query('INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, subject_id, is_active !== false]);
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/chapters/:id
+router.put('/chapters/:id', async (req, res) => {
+    const { name, subject_id, is_active } = req.body;
+    await query('UPDATE chapters SET name=$1, subject_id=$2, is_active=$3 WHERE id=$4', [name, subject_id, is_active, req.params.id]);
+    res.json({ message: 'Chapter updated' });
+});
+
+// @route   DELETE /api/admin/chapters/:id
+router.delete('/chapters/:id', async (req, res) => {
+    await query('DELETE FROM chapters WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Chapter deleted' });
+});
+
+// --- SUBSCRIPTION PLANS ---
+
+// @route   GET /api/admin/plans
+router.get('/plans', async (req, res) => {
+    const result = await query('SELECT * FROM subscription_plans ORDER BY price ASC');
+    res.json(result.rows);
+});
+
+// @route   POST /api/admin/plans
+router.post('/plans', async (req, res) => {
+    const { name, duration_hours, price, is_active } = req.body;
+    const result = await query(
+        'INSERT INTO subscription_plans (name, duration_hours, price, is_active) VALUES ($1, $2, $3, $4) RETURNING *',
+        [name, duration_hours, price, is_active !== false]
+    );
+    res.json(result.rows[0]);
+});
+
+// @route   PUT /api/admin/plans/:id
+router.put('/plans/:id', async (req, res) => {
+    const { name, duration_hours, price, is_active } = req.body;
+    await query(
+        'UPDATE subscription_plans SET name=$1, duration_hours=$2, price=$3, is_active=$4 WHERE id=$5',
+        [name, duration_hours, price, is_active, req.params.id]
+    );
+    res.json({ message: 'Plan updated' });
+});
+
+// @route   DELETE /api/admin/plans/:id
+router.delete('/plans/:id', async (req, res) => {
+    await query('DELETE FROM subscription_plans WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Plan deleted' });
+});
+
+// @route   PUT /api/admin/settings/ads
+router.put('/settings/ads', async (req, res) => {
+    const { ADSENSE_SCRIPT, ADS_TXT, ADS_ENABLED } = req.body;
     try {
-        const result = await query('INSERT INTO subjects (name, class_id, board_id, stream_id, semester_id) VALUES ($1,$2,$3,$4,$5) RETURNING *', [name, class_id, board_id, stream_id, semester_id]);
-        res.json(result.rows[0]);
+        const settings = {
+            'ADSENSE_SCRIPT': ADSENSE_SCRIPT,
+            'ADS_TXT': ADS_TXT,
+            'ADS_ENABLED': String(ADS_ENABLED)
+        };
+        for (const [key, value] of Object.entries(settings)) {
+            await query('INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', [key, String(value)]);
+        }
+        res.json({ message: 'Ads settings updated' });
     } catch (error) {
-        res.status(500).json({ message: 'Failed to create subject' });
+        res.status(500).json({ message: 'Failed to update ads settings' });
+    }
+});
+
+// @route   PUT /api/admin/settings/payments
+router.put('/settings/payments', async (req, res) => {
+    const { provider, api_key, api_secret, is_active } = req.body;
+    try {
+        await query(
+            'INSERT INTO payment_gateway_settings (provider, api_key, api_secret, is_active) VALUES ($1,$2,$3,$4) ON CONFLICT (provider) DO UPDATE SET api_key=$2, api_secret=$3, is_active=$4',
+            [provider, api_key, api_secret, is_active]
+        );
+        res.json({ message: 'Payment settings updated' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to update payment settings' });
     }
 });
 

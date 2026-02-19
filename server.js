@@ -26,8 +26,17 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 // Strict CORS (Adjust origin for production)
+const allowedOrigins = [process.env.FRONTEND_URL].filter(Boolean);
 app.use(cors({
-    origin: process.env.FRONTEND_URL || '*',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // Adjust this if you want to be even stricter
+        if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));

@@ -80,4 +80,34 @@ const fallbackMock = (topic, count) => {
     }));
 };
 
-module.exports = { generateMCQInitial };
+const fetchAIStructure = async (type, context) => {
+    try {
+        const providerRes = await query('SELECT * FROM ai_providers WHERE is_active = TRUE LIMIT 1');
+        if (providerRes.rows.length === 0 || !providerRes.rows[0].api_key) {
+            throw new Error('AI Provider not configured');
+        }
+        const { api_key, model_name, base_url } = providerRes.rows[0];
+
+        const prompt = `Generate a list of exactly 10 ${type} for the following context: "${context}". 
+        Return the result as a valid JSON array of strings. 
+        Example: ["Item 1", "Item 2", ...]
+        Return ONLY the JSON.`;
+
+        const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
+        const response = await axios.post(endpoint, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const responseText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!responseText) throw new Error('Empty AI response');
+
+        const parsedData = JSON.parse(responseText);
+        return Array.isArray(parsedData) ? parsedData : (parsedData.items || parsedData.list || []);
+    } catch (error) {
+        console.error('AI Structure Fetch Error:', error.message);
+        throw error;
+    }
+};
+
+module.exports = { generateMCQInitial, fetchAIStructure };
