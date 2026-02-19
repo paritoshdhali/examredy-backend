@@ -15,7 +15,7 @@ const generateToken = (id, role, email) => {
     if (!secret) {
         console.error('❌ CRITICAL ERROR: JWT_SECRET is not defined in environment variables.');
     }
-    return jwt.sign({ id, role, email }, secret || 'dev-secret-123', {
+    return jwt.sign({ id, role, email }, secret || 'examredy_secret_2026_fallback', {
         expiresIn: '7d',
     });
 };

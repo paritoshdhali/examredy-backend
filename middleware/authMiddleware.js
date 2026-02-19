@@ -15,7 +15,7 @@ const verifyToken = async (req, res, next) => {
                 return res.status(401).json({ message: 'Not authorized, token missing' });
             }
 
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'examredy_secret_2026_fallback');
 
             // Fetch user from DB to ensure valid and attach to req
             const result = await query('SELECT id, username, email, role, is_premium, premium_expiry, is_active FROM users WHERE id = $1', [decoded.id]);
