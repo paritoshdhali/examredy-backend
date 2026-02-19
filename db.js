@@ -83,6 +83,12 @@ const preloadData = async () => {
                 await query(`INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING;`, [cats[i], i]);
             }
             console.log('✅ Categories Preloaded');
+        } else {
+            // Ensure specific categories exist as per spec
+            const requiredCats = ['UPSC', 'CTET', 'SSC', 'Banking', 'Railway', 'State Govt Exams', 'Others'];
+            for (const cat of requiredCats) {
+                await query(`INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING;`, [cat]);
+            }
         }
 
     } catch (err) {
@@ -178,6 +184,26 @@ const initDB = async () => {
         await query(`INSERT INTO subscription_plans (name, duration_hours, price) VALUES ('1 Hour Pass', 1, 10), ('3 Hour Pass', 3, 25) ON CONFLICT DO NOTHING;`);
         await query(`CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), razorpay_order_id VARCHAR(100), razorpay_payment_id VARCHAR(100), amount DECIMAL(10, 2), status VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await query(`CREATE TABLE IF NOT EXISTS referrals (id SERIAL PRIMARY KEY, referrer_id INTEGER REFERENCES users(id), referred_user_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', reward_given BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+
+        // Legal Pages Table (Requirement 7)
+        await query(`CREATE TABLE IF NOT EXISTS legal_pages (
+            id SERIAL PRIMARY KEY,
+            slug VARCHAR(50) UNIQUE NOT NULL,
+            title VARCHAR(100) NOT NULL,
+            content TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        const defaultLegal = [
+            ['privacy-policy', 'Privacy Policy'],
+            ['terms-conditions', 'Terms & Conditions'],
+            ['refund-policy', 'Refund Policy'],
+            ['about-us', 'About Us'],
+            ['contact-us', 'Contact Us']
+        ];
+        for (const [slug, title] of defaultLegal) {
+            await query(`INSERT INTO legal_pages (slug, title) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING;`, [slug, title]);
+        }
         // Free Limit Control Table (Requirement 4)
         await query(`CREATE TABLE IF NOT EXISTS free_limit_settings (
             id SERIAL PRIMARY KEY,
@@ -284,9 +310,9 @@ const initDB = async () => {
             );
             console.log('✅ Default Admin Created (admin@examredy.in / Admin@123)');
         } else {
-            console.log('Ensuring admin security and credentials...');
-            await query('UPDATE users SET password = $1, role = $2 WHERE email = $3', [hashedDefaultPass, 'admin', adminEmail]);
-            console.log('✅ Admin credentials synchronized (Admin@123)');
+            console.log('Admin user verified. Ensuring role integrity...');
+            await query('UPDATE users SET role = $1 WHERE email = $2', ['admin', adminEmail]);
+            console.log('✅ Admin role synchronized.');
         }
 
         if (!process.env.JWT_SECRET) {

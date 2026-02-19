@@ -45,6 +45,7 @@ router.get('/stats', async (req, res) => {
         const revToday = await query('SELECT SUM(amount) FROM payments WHERE status = \'captured\' AND created_at >= CURRENT_DATE');
         const revMonthly = await query('SELECT SUM(amount) FROM payments WHERE status = \'captured\' AND created_at >= date_trunc(\'month\', CURRENT_DATE)');
         const revYearly = await query('SELECT SUM(amount) FROM payments WHERE status = \'captured\' AND created_at >= date_trunc(\'year\', CURRENT_DATE)');
+        const revTotal = await query('SELECT SUM(amount) FROM payments WHERE status = \'captured\'');
         const activeUsers = await query('SELECT COUNT(DISTINCT user_id) FROM user_daily_usage WHERE date = CURRENT_DATE');
 
         res.json({
@@ -54,7 +55,8 @@ router.get('/stats', async (req, res) => {
             totalCategories: parseInt(categories.rows[0]?.count || 0),
             revenueToday: parseFloat(revToday.rows[0]?.sum || 0),
             revenueMonthly: parseFloat(revMonthly.rows[0]?.sum || 0),
-            revenueYearly: parseFloat(revYearly.rows[0]?.sum || 0)
+            revenueYearly: parseFloat(revYearly.rows[0]?.sum || 0),
+            revenueTotal: parseFloat(revTotal.rows[0]?.sum || 0)
         });
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
@@ -300,6 +302,22 @@ router.get('/referrals', async (req, res) => {
         ORDER BY r.created_at DESC
     `);
     res.json(result.rows);
+});
+
+// --- 10. LEGAL PAGES ---
+
+router.get('/legal-pages', async (req, res) => {
+    const result = await query('SELECT * FROM legal_pages ORDER BY title ASC');
+    res.json(result.rows);
+});
+
+router.put('/legal-pages/:id', async (req, res) => {
+    const { title, content, is_active } = req.body;
+    await query(
+        'UPDATE legal_pages SET title=$1, content=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP WHERE id=$4',
+        [title, content, is_active, req.params.id]
+    );
+    res.json({ message: 'Legal page updated' });
 });
 
 router.put('/referrals/:id/reward', async (req, res) => {

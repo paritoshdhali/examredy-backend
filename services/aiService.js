@@ -51,13 +51,14 @@ const generateMCQInitial = async (topic, count = 5) => {
         }
 
         try {
-            const parsedData = JSON.parse(responseText);
+            const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsedData = JSON.parse(cleanText);
             // Gemini sometimes wraps result in an object or array, normalize to array
             const mcqs = Array.isArray(parsedData) ? parsedData : (parsedData.mcqs || parsedData.questions || []);
             return mcqs.slice(0, count);
         } catch (parseError) {
             console.error('JSON Parse Error from AI:', responseText);
-            throw new Error('AI output was not valid JSON');
+            throw new Error('AI output was not valid JSON: ' + parseError.message);
         }
 
     } catch (error) {
@@ -102,7 +103,8 @@ const fetchAIStructure = async (type, context) => {
         const responseText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!responseText) throw new Error('Empty AI response');
 
-        const parsedData = JSON.parse(responseText);
+        const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsedData = JSON.parse(cleanText);
         return Array.isArray(parsedData) ? parsedData : (parsedData.items || parsedData.list || []);
     } catch (error) {
         console.error('AI Structure Fetch Error:', error.message);
