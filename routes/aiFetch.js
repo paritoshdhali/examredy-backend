@@ -48,7 +48,39 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
             const result = await query('INSERT INTO boards (name, state_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, state_id, false]);
             saved.push(result.rows[0]);
         }
-        res.json({ message: 'Boards fetched', data: saved });
+        res.json({ message: `${boards.length} Boards fetched and saved as pending`, data: saved });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @route   POST /api/ai-fetch/universities
+router.post('/universities', verifyToken, admin, async (req, res) => {
+    const { state_id, state_name } = req.body;
+    try {
+        const universities = await fetchAIStructure('Universities', `State of ${state_name}, India`);
+        const saved = [];
+        for (const name of universities) {
+            const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, state_id, false]);
+            saved.push(result.rows[0]);
+        }
+        res.json({ message: `${universities.length} Universities fetched and saved as pending`, data: saved });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @route   POST /api/ai-fetch/papers
+router.post('/papers', verifyToken, admin, async (req, res) => {
+    const { category_id, category_name } = req.body;
+    try {
+        const papers = await fetchAIStructure('Papers/Stages', `Exam Category: ${category_name}`);
+        const saved = [];
+        for (const name of papers) {
+            const result = await query('INSERT INTO papers_stages (name, category_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, category_id, false]);
+            saved.push(result.rows[0]);
+        }
+        res.json({ message: `${papers.length} Papers/Stages fetched and saved as pending`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -56,18 +88,18 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
 
 // @route   POST /api/ai-fetch/subjects
 router.post('/subjects', verifyToken, admin, async (req, res) => {
-    const { class_id, class_name, board_id } = req.body;
+    const { category_id, board_id, university_id, class_id, stream_id, paper_stage_id, context_name } = req.body;
     try {
-        const subjects = await fetchAIStructure('Subjects', `Class: ${class_name}, Board ID: ${board_id}`);
+        const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}`);
         const saved = [];
         for (const name of subjects) {
             const result = await query(
-                'INSERT INTO subjects (name, class_id, board_id, is_active) VALUES ($1, $2, $3, $4) RETURNING *',
-                [name, class_id, board_id, false]
+                'INSERT INTO subjects (name, category_id, board_id, university_id, class_id, stream_id, paper_stage_id, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                [name, category_id, board_id, university_id, class_id, stream_id, paper_stage_id, false]
             );
             saved.push(result.rows[0]);
         }
-        res.json({ message: 'Subjects fetched', data: saved });
+        res.json({ message: `${subjects.length} Subjects fetched and saved as pending`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -83,7 +115,7 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
             const result = await query('INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, $3) RETURNING *', [name, subject_id, false]);
             saved.push(result.rows[0]);
         }
-        res.json({ message: 'Chapters fetched', data: saved });
+        res.json({ message: `${chapters.length} Chapters fetched and saved as pending`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
