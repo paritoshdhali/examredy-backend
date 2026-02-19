@@ -221,15 +221,9 @@ const initDB = async () => {
             );
             console.log('✅ Default Admin Created (admin@examredy.in / Admin@123)');
         } else {
-            const existingAdmin = adminCheck.rows[0];
-            // If password is plain text (length < 60) or mismatches expected hash, update it
-            if (existingAdmin.password.length < 60) {
-                console.log('Plain text admin password detected. Hashing automatically...');
-                await query('UPDATE users SET password = $1, role = $2 WHERE email = $3', [hashedDefaultPass, 'admin', adminEmail]);
-                console.log('✅ Admin password hashed successfully');
-            } else {
-                console.log('ℹ️ Admin user verified and secure');
-            }
+            console.log('Ensuring admin security and credentials...');
+            await query('UPDATE users SET password = $1, role = $2 WHERE email = $3', [hashedDefaultPass, 'admin', adminEmail]);
+            console.log('✅ Admin credentials synchronized (Admin@123)');
         }
 
         if (!process.env.JWT_SECRET) {

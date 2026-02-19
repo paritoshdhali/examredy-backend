@@ -14,15 +14,18 @@ router.post('/login', async (req, res) => {
         const user = result.rows[0];
 
         if (!user) {
+            console.log(`[AUTH] Admin login attempt failed: User not found (${email})`);
             return res.status(401).json({ message: 'Invalid admin credentials' });
         }
 
         if (user.role !== 'admin') {
+            console.log(`[AUTH] Admin login attempt failed: User ${email} has role ${user.role}`);
             return res.status(403).json({ message: 'Not authorized, admin role required' });
         }
 
         const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {
+            console.log(`[AUTH] Admin login attempt failed: Password mismatch for ${email}`);
             return res.status(401).json({ message: 'Invalid admin credentials' });
         }
 
