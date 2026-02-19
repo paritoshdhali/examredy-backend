@@ -122,4 +122,31 @@ const fallbackMockStructure = (type, context) => {
     ];
 };
 
-module.exports = { generateMCQInitial, fetchAIStructure };
+const generateSchoolBoards = async (stateName) => {
+    const prompt = `Return a list of real, officially recognized primary/secondary school education boards in the state of "${stateName}", India. (e.g., WBCHSE, CBSE, WBBSE, ICSE). 
+    Return exactly 10 boards if possible. Return only a JSON array of objects with a "name" key.
+    Example: [{"name": "CBSE"}, {"name": "WBBSE"}]
+    Return ONLY JSON.`;
+    const boards = await fetchAIStructure('boards', prompt);
+    return Array.isArray(boards) ? boards.map(b => typeof b === 'string' ? { name: b } : b) : [];
+};
+
+const generateSchoolSubjects = async (boardName, className, streamName) => {
+    const prompt = `Return a list of strictly syllabus-accurate subjects for ${className} ${streamName ? `(${streamName})` : ''} under the ${boardName} board in India.
+    Return only a JSON array of objects with a "name" key.
+    Example: [{"name": "Mathematics"}, {"name": "Physics"}]
+    Return ONLY JSON.`;
+    const subjects = await fetchAIStructure('subjects', prompt);
+    return Array.isArray(subjects) ? subjects.map(s => typeof s === 'string' ? { name: s } : s) : [];
+};
+
+const generateSchoolChapters = async (subjectName, boardName, className) => {
+    const prompt = `Return a list of officially correct chapters for the subject "${subjectName}" in ${className} of the ${boardName} board in India.
+    Return only a JSON array of objects with a "name" key.
+    Example: [{"name": "Trigonometry"}, {"name": "Calculus"}]
+    Return ONLY JSON.`;
+    const chapters = await fetchAIStructure('chapters', prompt);
+    return Array.isArray(chapters) ? chapters.map(c => typeof c === 'string' ? { name: c } : c) : [];
+};
+
+module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };

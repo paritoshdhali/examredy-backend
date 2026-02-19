@@ -419,4 +419,66 @@ router.put('/settings/payments/:provider', async (req, res) => {
     res.json({ message: 'Payment gateway settings updated' });
 });
 
+// --- 12. AI FETCH ENHANCEMENTS (SCHOOL CENTRAL) ---
+
+router.post('/ai-fetch/boards', async (req, res) => {
+    const { state_id, state_name } = req.body;
+    try {
+        const { generateSchoolBoards } = require('../services/aiService');
+        const boards = await generateSchoolBoards(state_name);
+
+        const savedBoards = [];
+        for (const board of boards) {
+            const result = await query(
+                'INSERT INTO boards (name, state_id, is_approved) VALUES ($1, $2, TRUE) ON CONFLICT (state_id, name) DO NOTHING RETURNING *',
+                [board.name, state_id]
+            );
+            if (result.rows[0]) savedBoards.push(result.rows[0]);
+        }
+        res.json({ message: 'Boards fetched successfully', data: savedBoards });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/ai-fetch/subjects', async (req, res) => {
+    const { board_id, class_id, board_name, class_name, stream_id, stream_name } = req.body;
+    try {
+        const { generateSchoolSubjects } = require('../services/aiService');
+        const subjects = await generateSchoolSubjects(board_name, class_name, stream_name);
+
+        const savedSubjects = [];
+        for (const sub of subjects) {
+            const result = await query(
+                'INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, is_approved) VALUES ($1, 1, $2, $3, $4, TRUE) ON CONFLICT (board_id, class_id, stream_id, name) DO NOTHING RETURNING *',
+                [sub.name, board_id, class_id, stream_id]
+            );
+            if (result.rows[0]) savedSubjects.push(result.rows[0]);
+        }
+        res.json({ message: 'Subjects fetched successfully', data: savedSubjects });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/ai-fetch/chapters', async (req, res) => {
+    const { subject_id, subject_name, board_name, class_name } = req.body;
+    try {
+        const { generateSchoolChapters } = require('../services/aiService');
+        const chapters = await generateSchoolChapters(subject_name, board_name, class_name);
+
+        const savedChapters = [];
+        for (const chap of chapters) {
+            const result = await query(
+                'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
+                [chap.name, subject_id]
+            );
+            if (result.rows[0]) savedChapters.push(result.rows[0]);
+        }
+        res.json({ message: 'Chapters fetched successfully', data: savedChapters });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
