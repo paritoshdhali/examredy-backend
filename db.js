@@ -401,6 +401,14 @@ const initDB = async () => {
 
         console.log('✅ All Database Tables Verified/Created & Indexes Applied');
 
+        // --- DATA HYGIENE (Requirement 2 & 4) ---
+        // Purge any pre-existing dummy/sample data to avoid confusion with real AI data
+        console.log('Running Data Hygiene: Purging Sample/Dummy records...');
+        await query(`DELETE FROM chapters WHERE name ILIKE '%SAMPLE%' OR name ILIKE '%TEST%' OR name ILIKE '%DUMMY%';`);
+        await query(`DELETE FROM subjects WHERE name ILIKE '%SAMPLE%' OR name ILIKE '%TEST%' OR name ILIKE '%DUMMY%';`);
+        await query(`DELETE FROM boards WHERE name ILIKE '%SAMPLE%' OR name ILIKE '%TEST%' OR name ILIKE '%DUMMY%';`);
+        console.log('✅ Data Hygiene Complete: Only Real Data remains.');
+
         // Run Preload after DB init
         await preloadData();
 
