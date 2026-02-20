@@ -294,16 +294,19 @@ const initDB = async () => {
         // AI Provider Enhanced Table (Requirement 7)
         await query(`CREATE TABLE IF NOT EXISTS ai_providers (
             id SERIAL PRIMARY KEY, 
-            name VARCHAR(100), 
+            name VARCHAR(100) UNIQUE, 
             base_url TEXT, 
             api_key TEXT, 
             model_name TEXT, 
             is_active BOOLEAN DEFAULT FALSE
         );`);
+        try { await query(`ALTER TABLE ai_providers ADD CONSTRAINT unique_ai_provider_name UNIQUE (name);`); } catch (e) { }
+
         // Ensure GEMINI is there but active is managed by admin
+        const geminiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY || '';
         await query(`INSERT INTO ai_providers (name, base_url, api_key, model_name, is_active) 
             VALUES ('Google Gemini', 'https://generativelanguage.googleapis.com/v1beta/models', $1, 'gemini-1.5-flash', true) 
-            ON CONFLICT DO NOTHING`, [process.env.GEMINI_API_KEY || '']);
+            ON CONFLICT (name) DO UPDATE SET api_key = $1 WHERE ai_providers.api_key IS NULL OR ai_providers.api_key = '';`, [geminiKey]);
 
         // Payment Gateway Settings (Requirement 6)
         await query(`CREATE TABLE IF NOT EXISTS payment_gateway_settings (
