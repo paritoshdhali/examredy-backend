@@ -123,25 +123,13 @@ const fallbackMockStructure = (type, context) => {
 };
 
 const generateSchoolBoards = async (stateName) => {
-    const prompt = `Return a list of REAL, officially recognized primary/secondary school education boards in the state of "${stateName}", India. 
-    Examples: WBCHSE, CBSE, WBBSE, ICSE, MSBSHSE, UPMSP.
-    - DO NOT generate placeholders like "Board 1" or "Board A".
-    - DO NOT use generic names.
-    - Return exactly 10 boards if possible. 
-    Return only a JSON array of objects with a "name" key.
-    Example: [{"name": "CBSE"}, {"name": "WBBSE"}]
-    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
+    const prompt = `State: ${stateName}, India. List exactly 10 REAL primary/secondary school boards (e.g., CBSE, ICSE, WBCHSE). No generic placeholders.`;
     const boards = await fetchAIStructure('boards', prompt);
     return Array.isArray(boards) ? boards.map(b => typeof b === 'string' ? { name: b } : b) : [];
 };
 
 const generateSchoolSubjects = async (boardName, className, streamName) => {
-    const prompt = `Return a list of STRICTLY syllabus-accurate subjects for ${className} ${streamName ? `(${streamName})` : ''} under the REAL "${boardName}" education board in India.
-    - DO NOT use placeholders like "Subject 1".
-    - Use real academic subjects (e.g., Mathematics, Bengali, Physics, History).
-    Return only a JSON array of objects with a "name" key.
-    Example: [{"name": "Mathematics"}, {"name": "Physics"}]
-    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
+    const prompt = `Board: ${boardName}, Class: ${className}, Stream: ${streamName || 'General'}. List REAL syllabus subjects. No placeholders.`;
     const subjects = await fetchAIStructure('subjects', prompt);
     return Array.isArray(subjects) ? subjects.map(s => typeof s === 'string' ? { name: s } : s) : [];
 };

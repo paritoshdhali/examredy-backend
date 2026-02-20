@@ -48,8 +48,9 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const name of boards) {
-                // Placeholder guard
-                if (name.toLowerCase().includes('board ') || name.toLowerCase().includes('placeholder')) continue;
+                // Smarter placeholder guard: checks for patterns like "Board 1", "Class A", etc.
+                const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
+                if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
 
                 const result = await query(
                     'INSERT INTO boards (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *',
@@ -127,13 +128,14 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const name of subjects) {
-                if (name.toLowerCase().includes('subject ') || name.toLowerCase().includes('placeholder')) continue;
+                const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
+                if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
                 // Robust insertion with NULL handling for stream_id
                 const result = await query(
                     `INSERT INTO subjects (
-                        name, category_id, board_id, university_id, class_id, stream_id, 
+                        name, category_id, board_id, university_id, class_id, stream_id,
                         semester_id, degree_type_id, paper_stage_id, is_active
-                    ) 
+                    )
                     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE
                     WHERE NOT EXISTS (
                         SELECT 1 FROM subjects 
@@ -167,7 +169,9 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const name of chapters) {
-                if (name.toLowerCase().includes('chapter ') || name.toLowerCase().includes('placeholder')) continue;
+                const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
+                if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
+
                 const result = await query(
                     'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
                     [name, subject_id, true]
