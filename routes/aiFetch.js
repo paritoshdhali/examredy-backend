@@ -64,7 +64,7 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of boards) {
-                const name = item.name;
+                const name = (item.name || '').substring(0, 200);
                 // Smarter placeholder guard: checks for patterns like "Board 1", "Class A", etc.
                 const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
                 if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
@@ -110,7 +110,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of universities) {
-                const name = item.name;
+                const name = (item.name || '').substring(0, 200);
                 if (name.toLowerCase().includes('university ') || name.toLowerCase().includes('placeholder')) continue;
                 const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *', [name, state_id, true]);
                 if (result.rows[0]) {
@@ -148,7 +148,7 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of papers) {
-                const name = item.name;
+                const name = (item.name || '').substring(0, 200);
                 const result = await query('INSERT INTO papers_stages (name, category_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (category_id, name) DO NOTHING RETURNING *', [name, category_id, true]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
@@ -186,7 +186,7 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of subjects) {
-                const name = item.name;
+                const name = (item.name || '').substring(0, 200);
                 const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
                 if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
                 // Robust insertion with NULL handling for stream_id
@@ -241,7 +241,7 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of chapters) {
-                const name = item.name;
+                const name = (item.name || '').substring(0, 200);
                 const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
                 if (isPlaceholder || name.toLowerCase().includes('placeholder')) continue;
 

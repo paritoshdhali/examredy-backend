@@ -329,6 +329,7 @@ const initDB = async () => {
         const hierarchyTables = ['boards', 'universities', 'subjects', 'chapters', 'papers_stages', 'degree_types', 'semesters'];
         for (const table of hierarchyTables) {
             try {
+                await query(`ALTER TABLE ${table} ALTER COLUMN name TYPE VARCHAR(500);`);
                 await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;`);
             } catch (e) { }
         }
