@@ -105,7 +105,16 @@ const fetchAIStructure = async (type, context) => {
 
         const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const parsedData = JSON.parse(cleanText);
-        return Array.isArray(parsedData) ? parsedData : (parsedData.items || parsedData.list || []);
+        const data = Array.isArray(parsedData) ? parsedData : (parsedData.items || parsedData.list || []);
+
+        // Always normalize to array of objects with 'name' property
+        return data.map(item => {
+            if (typeof item === 'string') return { name: item };
+            if (typeof item === 'object' && item !== null) {
+                return { name: item.name || item.title || item.label || Object.values(item)[0] };
+            }
+            return { name: String(item) };
+        });
     } catch (error) {
         console.error('AI Structure Fetch Error:', error.message);
         return fallbackMockStructure(type, context);
@@ -124,14 +133,12 @@ const fallbackMockStructure = (type, context) => {
 
 const generateSchoolBoards = async (stateName) => {
     const prompt = `State: ${stateName}, India. List exactly 10 REAL primary/secondary school boards (e.g., CBSE, ICSE, WBCHSE). No generic placeholders.`;
-    const boards = await fetchAIStructure('boards', prompt);
-    return Array.isArray(boards) ? boards.map(b => typeof b === 'string' ? { name: b } : b) : [];
+    return await fetchAIStructure('boards', prompt);
 };
 
 const generateSchoolSubjects = async (boardName, className, streamName) => {
     const prompt = `Board: ${boardName}, Class: ${className}, Stream: ${streamName || 'General'}. List REAL syllabus subjects. No placeholders.`;
-    const subjects = await fetchAIStructure('subjects', prompt);
-    return Array.isArray(subjects) ? subjects.map(s => typeof s === 'string' ? { name: s } : s) : [];
+    return await fetchAIStructure('subjects', prompt);
 };
 
 const generateSchoolChapters = async (subjectName, boardName, className) => {
@@ -141,8 +148,7 @@ const generateSchoolChapters = async (subjectName, boardName, className) => {
     Return only a JSON array of objects with a "name" key.
     Example: [{"name": "Trigonometry"}, {"name": "Calculus"}]
     Return ONLY JSON. STRICTLY NO MARKDOWN.`;
-    const chapters = await fetchAIStructure('chapters', prompt);
-    return Array.isArray(chapters) ? chapters.map(c => typeof c === 'string' ? { name: c } : c) : [];
+    return await fetchAIStructure('chapters', prompt);
 };
 
 module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };
