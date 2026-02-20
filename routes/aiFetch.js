@@ -42,13 +42,28 @@ const { generateMCQInitial, fetchAIStructure } = require('../services/aiService'
 router.post('/boards', verifyToken, admin, async (req, res) => {
     const { state_id, state_name } = req.body;
     try {
-        const boards = await fetchAIStructure('Education Boards', `State of ${state_name}, India`);
+        const boards = await fetchAIStructure('Education Boards', `State of ${state_name}, India. Strictly provide original board names only. No placeholders.`);
         const saved = [];
-        for (const name of boards) {
-            const result = await query('INSERT INTO boards (name, state_id, is_approved) VALUES ($1, $2, $3) RETURNING *', [name, state_id, false]);
-            saved.push(result.rows[0]);
+
+        await query('BEGIN');
+        try {
+            for (const name of boards) {
+                // Placeholder guard
+                if (name.toLowerCase().includes('board ') || name.toLowerCase().includes('placeholder')) continue;
+
+                const result = await query(
+                    'INSERT INTO boards (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *',
+                    [name, state_id, true]
+                );
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+            await query('COMMIT');
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
         }
-        res.json({ message: `${boards.length} Boards fetched and saved as pending approval`, data: saved });
+
+        res.json({ message: `${saved.length} Boards fetched and saved as pending approval`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -58,13 +73,22 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
 router.post('/universities', verifyToken, admin, async (req, res) => {
     const { state_id, state_name } = req.body;
     try {
-        const universities = await fetchAIStructure('Universities', `State of ${state_name}, India`);
+        const universities = await fetchAIStructure('Universities', `State of ${state_name}, India. Strictly provide original names only.`);
         const saved = [];
-        for (const name of universities) {
-            const result = await query('INSERT INTO universities (name, state_id, is_approved) VALUES ($1, $2, $3) RETURNING *', [name, state_id, false]);
-            saved.push(result.rows[0]);
+
+        await query('BEGIN');
+        try {
+            for (const name of universities) {
+                if (name.toLowerCase().includes('university ') || name.toLowerCase().includes('placeholder')) continue;
+                const result = await query('INSERT INTO universities (name, state_id, is_approved) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, state_id, false]);
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+            await query('COMMIT');
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
         }
-        res.json({ message: `${universities.length} Universities fetched and saved as pending approval`, data: saved });
+        res.json({ message: `${saved.length} Universities fetched and saved as pending approval`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -74,13 +98,20 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
 router.post('/papers', verifyToken, admin, async (req, res) => {
     const { category_id, category_name } = req.body;
     try {
-        const papers = await fetchAIStructure('Papers/Stages', `Exam Category: ${category_name}`);
+        const papers = await fetchAIStructure('Papers/Stages', `Exam Category: ${category_name}. Strictly original names.`);
         const saved = [];
-        for (const name of papers) {
-            const result = await query('INSERT INTO papers_stages (name, category_id, is_approved) VALUES ($1, $2, $3) RETURNING *', [name, category_id, false]);
-            saved.push(result.rows[0]);
+        await query('BEGIN');
+        try {
+            for (const name of papers) {
+                const result = await query('INSERT INTO papers_stages (name, category_id, is_approved) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, category_id, false]);
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+            await query('COMMIT');
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
         }
-        res.json({ message: `${papers.length} Papers/Stages fetched and saved as pending approval`, data: saved });
+        res.json({ message: `${saved.length} Papers/Stages fetched and saved as pending approval`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -90,19 +121,37 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
 router.post('/subjects', verifyToken, admin, async (req, res) => {
     const { category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, context_name } = req.body;
     try {
-        const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}`);
+        const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}. Strictly original syllabus subject names only. No placeholders.`);
         const saved = [];
-        for (const name of subjects) {
-            const result = await query(
-                `INSERT INTO subjects (
-                    name, category_id, board_id, university_id, class_id, stream_id, 
-                    semester_id, degree_type_id, paper_stage_id, is_approved
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-                [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, false]
-            );
-            saved.push(result.rows[0]);
+
+        await query('BEGIN');
+        try {
+            for (const name of subjects) {
+                if (name.toLowerCase().includes('subject ') || name.toLowerCase().includes('placeholder')) continue;
+                // Robust insertion with NULL handling for stream_id
+                const result = await query(
+                    `INSERT INTO subjects (
+                        name, category_id, board_id, university_id, class_id, stream_id, 
+                        semester_id, degree_type_id, paper_stage_id, is_active
+                    ) 
+                    SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM subjects 
+                        WHERE board_id = $3 AND class_id = $5 
+                        AND (stream_id = $6 OR (stream_id IS NULL AND $6 IS NULL)) 
+                        AND name = $1
+                    )
+                    RETURNING *`,
+                    [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]
+                );
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+            await query('COMMIT');
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
         }
-        res.json({ message: `${subjects.length} Subjects fetched and saved as pending approval`, data: saved });
+        res.json({ message: `${saved.length} Subjects fetched and saved as pending approval`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -112,13 +161,25 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
 router.post('/chapters', verifyToken, admin, async (req, res) => {
     const { subject_id, subject_name } = req.body;
     try {
-        const chapters = await fetchAIStructure('Chapters', `Subject: ${subject_name}`);
+        const chapters = await fetchAIStructure('Chapters', `Subject: ${subject_name}. Strictly original syllabus chapter names only.`);
         const saved = [];
-        for (const name of chapters) {
-            const result = await query('INSERT INTO chapters (name, subject_id, is_approved) VALUES ($1, $2, $3) RETURNING *', [name, subject_id, false]);
-            saved.push(result.rows[0]);
+
+        await query('BEGIN');
+        try {
+            for (const name of chapters) {
+                if (name.toLowerCase().includes('chapter ') || name.toLowerCase().includes('placeholder')) continue;
+                const result = await query(
+                    'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
+                    [name, subject_id, true]
+                );
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+            await query('COMMIT');
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
         }
-        res.json({ message: `${chapters.length} Chapters fetched and saved as pending approval`, data: saved });
+        res.json({ message: `${saved.length} Chapters fetched and saved as pending approval`, data: saved });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

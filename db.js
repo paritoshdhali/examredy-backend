@@ -216,8 +216,16 @@ const initDB = async () => {
             degree_type_id INTEGER REFERENCES degree_types(id), 
             paper_stage_id INTEGER REFERENCES papers_stages(id), 
             is_active BOOLEAN DEFAULT TRUE,
-            CONSTRAINT unique_subject_hierarchy UNIQUE (board_id, class_id, stream_id, name)
+            CONSTRAINT unique_subject_hierarchy UNIQUE (board_id, class_id, name)
         );`);
+        //-- Migration to update constraint for subjects (Handles NULL stream_id correctly in Postgres)
+        try {
+            await query(`ALTER TABLE subjects DROP CONSTRAINT IF EXISTS unique_subject_hierarchy;`);
+            await query(`DROP INDEX IF EXISTS idx_unique_subject_with_stream;`);
+            await query(`DROP INDEX IF EXISTS idx_unique_subject_no_stream;`);
+            await query(`CREATE UNIQUE INDEX idx_unique_subject_with_stream ON subjects (board_id, class_id, stream_id, name) WHERE stream_id IS NOT NULL;`);
+            await query(`CREATE UNIQUE INDEX idx_unique_subject_no_stream ON subjects (board_id, class_id, name) WHERE stream_id IS NULL;`);
+        } catch (e) { console.log('Subject index migration: Handled.'); }
         try {
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES categories(id);`);
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS university_id INTEGER REFERENCES universities(id);`);
