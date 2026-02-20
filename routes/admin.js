@@ -103,6 +103,15 @@ router.post('/users/:id/reset-usage', async (req, res) => {
     res.json({ message: 'Usage reset' });
 });
 
+router.put('/users/:id/status', async (req, res) => {
+    try {
+        await query('UPDATE users SET is_active = $1 WHERE id = $2', [req.body.is_active, req.params.id]);
+        const uRes = await query('SELECT id, username, email, role, is_premium, is_active, created_at FROM users ORDER BY created_at DESC LIMIT 20');
+        res.json({ success: true, message: 'User status updated', updatedData: uRes.rows });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+
 // --- 3. CATEGORIES & STRUCTURE (STATES, LANGUAGES) ---
 
 router.get('/categories', async (req, res) => {

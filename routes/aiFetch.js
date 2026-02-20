@@ -86,13 +86,11 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
         }
 
         let message = `${saved.length} Boards fetched and saved.`;
-        if (existingCount > 0) {
-            message += ` ${existingCount} Boards already existed.`;
-        }
-        if (saved.length === 0 && existingCount === 0) {
-            message = `AI returned no valid data or all items were filtered. (Raw: ${JSON.stringify(boards?.slice(0, 2))})`;
-        }
-        res.json({ message, data: saved, rawFetch: boards });
+        if (existingCount > 0) message += ` ${existingCount} already existed.`;
+        if (saved.length === 0 && existingCount === 0) message = `AI returned no valid data.`;
+        // Fetch updated full boards list
+        const updated = await query('SELECT b.*, s.name as state_name FROM boards b LEFT JOIN states s ON b.state_id = s.id ORDER BY b.name ASC');
+        res.json({ success: true, count: saved.length, message, updatedData: updated.rows });
     } catch (error) {
         console.error('AI Fetch Boards Error:', error);
         res.status(500).json({ message: error.message || 'Server error during board fetch' });
@@ -125,13 +123,10 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
             throw err;
         }
         let message = `${saved.length} Universities fetched and saved.`;
-        if (existingCount > 0) {
-            message += ` ${existingCount} Universities already existed.`;
-        }
-        if (saved.length === 0 && existingCount === 0) {
-            message = `AI returned no valid Universities or duplicates found. (Raw: ${JSON.stringify(universities?.slice(0, 2))})`;
-        }
-        res.json({ message, data: saved, rawFetch: universities });
+        if (existingCount > 0) message += ` ${existingCount} already existed.`;
+        if (saved.length === 0 && existingCount === 0) message = `AI returned no valid Universities.`;
+        const updUni = await query('SELECT u.*, s.name as state_name FROM universities u LEFT JOIN states s ON u.state_id = s.id ORDER BY u.name ASC');
+        res.json({ success: true, count: saved.length, message, updatedData: updUni.rows });
     } catch (error) {
         console.error('AI Fetch Universities Error:', error);
         res.status(500).json({ message: error.message || 'Server error during university fetch' });
@@ -162,13 +157,10 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
             throw err;
         }
         let message = `${saved.length} Papers/Stages fetched and saved.`;
-        if (existingCount > 0) {
-            message += ` ${existingCount} Papers/Stages already existed.`;
-        }
-        if (saved.length === 0 && existingCount === 0) {
-            message = `AI returned no valid Papers or duplicates found. (Raw: ${JSON.stringify(papers?.slice(0, 2))})`;
-        }
-        res.json({ message, data: saved, rawFetch: papers });
+        if (existingCount > 0) message += ` ${existingCount} already existed.`;
+        if (saved.length === 0 && existingCount === 0) message = `AI returned no valid Papers.`;
+        const updPap = await query('SELECT p.*, c.name as category_name FROM papers_stages p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC');
+        res.json({ success: true, count: saved.length, message, updatedData: updPap.rows });
     } catch (error) {
         console.error('AI Fetch Papers Error:', error);
         res.status(500).json({ message: error.message || 'Server error during papers fetch' });
@@ -217,13 +209,10 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
             throw err;
         }
         let message = `${saved.length} Subjects fetched and saved.`;
-        if (existingCount > 0) {
-            message += ` ${existingCount} Subjects already existed.`;
-        }
-        if (saved.length === 0 && existingCount === 0) {
-            message = `AI returned no valid Subjects or duplicates found. (Raw: ${JSON.stringify(subjects?.slice(0, 2))})`;
-        }
-        res.json({ message, data: saved, rawFetch: subjects });
+        if (existingCount > 0) message += ` ${existingCount} already existed.`;
+        if (saved.length === 0 && existingCount === 0) message = `AI returned no valid Subjects.`;
+        const updSub = await query(`SELECT sub.*, b.name as board_name, c.name as class_name, str.name as stream_name, cat.name as category_name FROM subjects sub LEFT JOIN boards b ON sub.board_id = b.id LEFT JOIN classes c ON sub.class_id = c.id LEFT JOIN streams str ON sub.stream_id = str.id LEFT JOIN categories cat ON sub.category_id = cat.id ORDER BY sub.name ASC`);
+        res.json({ success: true, count: saved.length, message, updatedData: updSub.rows });
     } catch (error) {
         console.error('AI Fetch Subjects Error:', error);
         res.status(500).json({ message: error.message || 'Server error during subject fetch' });
@@ -262,13 +251,10 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
         }
 
         let message = `${saved.length} Chapters fetched and saved.`;
-        if (existingCount > 0) {
-            message += ` ${existingCount} Chapters already existed.`;
-        }
-        if (saved.length === 0 && existingCount === 0) {
-            message = `AI returned no valid Chapters or duplicates found. (Raw: ${JSON.stringify(chapters?.slice(0, 2))})`;
-        }
-        res.json({ message, data: saved, rawFetch: chapters });
+        if (existingCount > 0) message += ` ${existingCount} already existed.`;
+        if (saved.length === 0 && existingCount === 0) message = `AI returned no valid Chapters.`;
+        const updCh = await query('SELECT ch.*, sub.name as subject_name FROM chapters ch LEFT JOIN subjects sub ON ch.subject_id = sub.id ORDER BY ch.name ASC');
+        res.json({ success: true, count: saved.length, message, updatedData: updCh.rows });
     } catch (error) {
         console.error('AI Fetch Chapters Error:', error);
         res.status(500).json({ message: error.message || 'Server error during chapter fetch' });
