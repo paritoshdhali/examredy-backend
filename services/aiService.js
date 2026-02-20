@@ -123,11 +123,11 @@ const fetchAIStructure = async (type, context) => {
 
 const fallbackMockStructure = (type, context) => {
     return [
-        `Sample ${type} 1 (${context})`,
-        `Sample ${type} 2 (${context})`,
-        `Sample ${type} 3 (${context})`,
-        `Sample ${type} 4 (${context})`,
-        `Sample ${type} 5 (${context})`
+        { name: `Sample ${type} 1 (${context})` },
+        { name: `Sample ${type} 2 (${context})` },
+        { name: `Sample ${type} 3 (${context})` },
+        { name: `Sample ${type} 4 (${context})` },
+        { name: `Sample ${type} 5 (${context})` }
     ];
 };
 

@@ -79,7 +79,8 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
         }
         res.json({ message, data: saved });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Fetch Boards Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during board fetch' });
     }
 });
 
@@ -96,7 +97,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
             for (const item of universities) {
                 const name = item.name;
                 if (name.toLowerCase().includes('university ') || name.toLowerCase().includes('placeholder')) continue;
-                const result = await query('INSERT INTO universities (name, state_id, is_approved) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, state_id, false]);
+                const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, state_id, true]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
                 } else {
@@ -108,7 +109,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
             await query('ROLLBACK');
             throw err;
         }
-        let message = `${saved.length} Universities fetched and saved as pending approval.`;
+        let message = `${saved.length} Universities fetched and saved.`;
         if (existingCount > 0) {
             message += ` ${existingCount} Universities already existed.`;
         }
@@ -117,7 +118,8 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
         }
         res.json({ message, data: saved });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Fetch Universities Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during university fetch' });
     }
 });
 
@@ -132,7 +134,7 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
         try {
             for (const item of papers) {
                 const name = item.name;
-                const result = await query('INSERT INTO papers_stages (name, category_id, is_approved) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, category_id, false]);
+                const result = await query('INSERT INTO papers_stages (name, category_id, is_active) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *', [name, category_id, true]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
                 } else {
@@ -144,7 +146,7 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
             await query('ROLLBACK');
             throw err;
         }
-        let message = `${saved.length} Papers/Stages fetched and saved as pending approval.`;
+        let message = `${saved.length} Papers/Stages fetched and saved.`;
         if (existingCount > 0) {
             message += ` ${existingCount} Papers/Stages already existed.`;
         }
@@ -153,7 +155,8 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
         }
         res.json({ message, data: saved });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Fetch Papers Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during papers fetch' });
     }
 });
 
@@ -198,7 +201,7 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
             await query('ROLLBACK');
             throw err;
         }
-        let message = `${saved.length} Subjects fetched and saved as pending approval.`;
+        let message = `${saved.length} Subjects fetched and saved.`;
         if (existingCount > 0) {
             message += ` ${existingCount} Subjects already existed.`;
         }
@@ -207,7 +210,8 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
         }
         res.json({ message, data: saved });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Fetch Subjects Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during subject fetch' });
     }
 });
 
@@ -251,7 +255,8 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
         }
         res.json({ message, data: saved });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('AI Fetch Chapters Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during chapter fetch' });
     }
 });
 
