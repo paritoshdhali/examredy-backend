@@ -162,35 +162,133 @@ const fetchAIStructure = async (type, context) => {
     }
 };
 
-const fallbackMockStructure = (type, context, errorMsg = 'Unknown') => {
+
+// Curated real education boards for Indian states — used as AI context + fallback
+const INDIA_STATE_BOARDS = {
+    'west bengal': ['WBBSE (West Bengal Board of Secondary Education)', 'WBCHSE (West Bengal Council of Higher Secondary Education)', 'CBSE', 'ICSE (CISCE)', 'Rabindra Open Schooling'],
+    'maharashtra': ['Maharashtra State Board (MSBSHSE)', 'CBSE', 'ICSE (CISCE)', 'IB (International Baccalaureate)', 'NIOS'],
+    'uttar pradesh': ['UPMSP (UP Board)', 'CBSE', 'ICSE (CISCE)', 'NIOS'],
+    'tamil nadu': ['Tamil Nadu State Board (TNBSE)', 'Samacheer Kalvi Board', 'CBSE', 'ICSE (CISCE)'],
+    'karnataka': ['KSEEB (Karnataka Board)', 'PUC Board Karnataka', 'CBSE', 'ICSE (CISCE)'],
+    'rajasthan': ['RBSE (Rajasthan Board)', 'CBSE', 'ICSE (CISCE)', 'NIOS'],
+    'gujarat': ['GSEB (Gujarat Board)', 'CBSE', 'ICSE (CISCE)'],
+    'bihar': ['BSEB (Bihar Board)', 'CBSE', 'ICSE (CISCE)', 'NIOS'],
+    'madhya pradesh': ['MPBSE (MP Board)', 'CBSE', 'ICSE (CISCE)'],
+    'kerala': ['DHSE Kerala (Kerala Board)', 'CBSE', 'ICSE (CISCE)', 'NIOS'],
+    'andhra pradesh': ['BSEAP (AP Board)', 'CBSE', 'ICSE (CISCE)'],
+    'telangana': ['BSETS / TSBIE (Telangana Board)', 'CBSE', 'ICSE (CISCE)'],
+    'haryana': ['HBSE (Haryana Board)', 'CBSE', 'ICSE (CISCE)'],
+    'punjab': ['PSEB (Punjab Board)', 'CBSE', 'ICSE (CISCE)'],
+    'delhi': ['CBSE', 'ICSE (CISCE)', 'Delhi Board (DBSE)', 'NIOS'],
+    'assam': ['SEBA (Assam Board Class 10)', 'AHSEC (Assam Board Class 12)', 'CBSE', 'ICSE (CISCE)'],
+    'odisha': ['BSE Odisha', 'CHSE Odisha', 'CBSE', 'ICSE (CISCE)'],
+    'jharkhand': ['JAC (Jharkhand Board)', 'CBSE', 'ICSE (CISCE)'],
+    'chhattisgarh': ['CGBSE (Chhattisgarh Board)', 'CBSE', 'ICSE (CISCE)'],
+    'himachal pradesh': ['HPBOSE (HP Board)', 'CBSE', 'ICSE (CISCE)'],
+    'uttarakhand': ['UBSE (Uttarakhand Board)', 'CBSE', 'ICSE (CISCE)'],
+    'goa': ['GBSHSE (Goa Board)', 'CBSE', 'ICSE (CISCE)'],
+    'manipur': ['BSEM (Manipur Board)', 'COHSEM', 'CBSE'],
+    'meghalaya': ['MBOSE (Meghalaya Board)', 'CBSE'],
+    'tripura': ['TBSE (Tripura Board)', 'CBSE'],
+    'nagaland': ['NBSE (Nagaland Board)', 'CBSE'],
+    'arunachal pradesh': ['APDHTE', 'CBSE'],
+    'sikkim': ['SSLC Sikkim', 'CBSE'],
+    'mizoram': ['MBSE (Mizoram Board)', 'CBSE'],
+    'jammu and kashmir': ['JKBOSE (J&K Board)', 'CBSE'],
+    'ladakh': ['CBSE'],
+};
+
+const getCuratedBoards = (stateName) => {
+    const key = stateName?.toLowerCase().trim();
+    for (const [state, boards] of Object.entries(INDIA_STATE_BOARDS)) {
+        if (key?.includes(state) || state.includes(key)) {
+            return boards.map(name => ({ name }));
+        }
+    }
+    // Generic fallback for unknown states
     return [
-        { name: `DEBUG_ERROR: ${errorMsg}` },
-        { name: `Sample ${type} 1 (${context})` },
-        { name: `Sample ${type} 2 (${context})` }
+        { name: 'CBSE' },
+        { name: 'ICSE (CISCE)' },
+        { name: 'NIOS' },
+        { name: `${stateName} State Board` },
     ];
 };
 
+const fallbackMockStructure = (type, context, errorMsg = '') => {
+    // Never save debug errors as actual data
+    console.error(`[AI Fallback] type=${type}, context=${context}, error=${errorMsg}`);
+    return []; // Return empty — admin can retry or manual add
+};
+
 const generateSchoolBoards = async (stateName) => {
-    const prompt = `State: ${stateName}, India. List exactly 10 REAL primary/secondary school boards (e.g., CBSE, ICSE, WBCHSE). No generic placeholders.`;
-    return await fetchAIStructure('boards', prompt);
+    const curated = getCuratedBoards(stateName);
+    const curatedList = curated.map(b => b.name).join(', ');
+
+    const prompt = `You are a school education expert for India.
+For the state/UT "${stateName}", list ALL official and commonly used school education boards.
+
+Known boards typically used in India include: ${curatedList}
+For "${stateName}" specifically, confirm which of the above are actually operative and add any additional state-specific boards.
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"CBSE"},{"name":"WBBSE"},{"name":"ICSE (CISCE)"}]
+Rules:
+- Include only REAL, officially recognized boards
+- Include both central boards (CBSE, ICSE, NIOS) and state board(s)  
+- Do NOT include placeholders, duplicates, or made-up names
+- Return 3 to 8 real boards maximum
+Return ONLY JSON. NO MARKDOWN.`;
+
+    try {
+        const result = await fetchAIStructure('school boards', prompt);
+        // Validate: filter out anything that looks like an error or placeholder
+        const valid = result.filter(b =>
+            b.name &&
+            !b.name.includes('DEBUG') &&
+            !b.name.includes('Error') &&
+            !b.name.includes('Sample') &&
+            !b.name.includes('FIX-V1') &&
+            b.name.length > 2
+        );
+        // If AI returned nothing valid, use curated data
+        return valid.length > 0 ? valid : curated;
+    } catch {
+        return curated;
+    }
 };
 
 const generateSchoolSubjects = async (boardName, className, streamName) => {
-    const prompt = `Board: ${boardName}, Class: ${className}, Stream: ${streamName || 'General'}, India. 
-    List the exactly 10 REAL official compulsory subjects found in the authorized syllabus (e.g., NCERT, State Board syllabus). 
-    Exclude elective or minor subjects if possible. No generic placeholders.`;
+    const prompt = `You are an Indian school curriculum expert.
+For ${boardName}, Class ${className}, Stream: ${streamName || 'General'} (India):
+List ALL official compulsory subjects from the authorized syllabus (NCERT/State Board).
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Mathematics"},{"name":"Physics"},{"name":"English"}]
+Rules:
+- Use exact official subject names
+- Include 5-10 core subjects
+- No placeholders or duplicates
+Return ONLY JSON. NO MARKDOWN.`;
     return await fetchAIStructure('subjects', prompt);
 };
 
 const generateSchoolChapters = async (subjectName, boardName, className) => {
-    const prompt = `Return a list of OFFICIALLY CORRECT textbook chapters for the subject "${subjectName}" in ${className} of the ${boardName} board in India.
-    - Use real, specific chapter names from the authorized textbook syllabus for the current academic year.
-    - DO NOT use placeholders like "Chapter 1".
-    - Focus on core curriculum content.
-    Return only a JSON array of objects with a "name" key.
-    Example: [{"name": "Trigonometry"}, {"name": "Calculus"}]
-    Return ONLY JSON. STRICTLY NO MARKDOWN.`;
+    const prompt = `You are an Indian school curriculum expert.
+List ALL official textbook chapters for:
+- Subject: ${subjectName}
+- Board: ${boardName}  
+- Class: ${className}
+- Country: India
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Real Numbers"},{"name":"Polynomials"},{"name":"Triangles"}]
+Rules:
+- Use exact chapter names from the official NCERT or state board textbook
+- Do NOT use placeholders like "Chapter 1"
+- Include all major chapters (8-18 expected)
+Return ONLY JSON. NO MARKDOWN.`;
     return await fetchAIStructure('chapters', prompt);
 };
 
 module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };
+
