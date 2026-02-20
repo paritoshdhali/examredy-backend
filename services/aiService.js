@@ -32,10 +32,14 @@ const generateMCQInitial = async (topic, count = 5) => {
             const endpoint = `${base_url}/chat/completions`.replace(/([^:])\/\//g, '$1/');
             response = await axios.post(endpoint, {
                 model: model_name,
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: "json_object" }
+                messages: [{ role: 'user', content: prompt }]
             }, {
-                headers: { 'Authorization': `Bearer ${api_key}`, 'Content-Type': 'application/json' }
+                headers: {
+                    'Authorization': `Bearer ${api_key}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://examredy.in',
+                    'X-Title': 'ExamRedy Admin'
+                }
             });
         } else {
             const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
@@ -57,7 +61,8 @@ const generateMCQInitial = async (topic, count = 5) => {
         return mcqs.slice(0, count);
 
     } catch (error) {
-        console.error('AI Service Error:', error.response?.data || error.message);
+        const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+        console.error('AI Service Error:', JSON.stringify(error.response?.data || error.message));
         return fallbackMock(topic, count);
     }
 };
@@ -92,10 +97,14 @@ const fetchAIStructure = async (type, context) => {
             const endpoint = `${base_url}/chat/completions`.replace(/([^:])\/\//g, '$1/');
             response = await axios.post(endpoint, {
                 model: model_name,
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: "json_object" }
+                messages: [{ role: 'user', content: prompt }]
             }, {
-                headers: { 'Authorization': `Bearer ${api_key}`, 'Content-Type': 'application/json' }
+                headers: {
+                    'Authorization': `Bearer ${api_key}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://examredy.in',
+                    'X-Title': 'ExamRedy Admin'
+                }
             });
         } else {
             const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
@@ -124,8 +133,9 @@ const fetchAIStructure = async (type, context) => {
             return { name: String(item) };
         });
     } catch (error) {
-        console.error('AI Structure Fetch Error:', error.response?.data || error.message);
-        return fallbackMockStructure(type, context, error.message);
+        const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : null) || error.message;
+        console.error('AI Structure Fetch Error:', JSON.stringify(error.response?.data || error.message));
+        return fallbackMockStructure(type, context, errorDetail);
     }
 };
 
