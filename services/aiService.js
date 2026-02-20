@@ -125,17 +125,15 @@ const fetchAIStructure = async (type, context) => {
         });
     } catch (error) {
         console.error('AI Structure Fetch Error:', error.message);
-        return fallbackMockStructure(type, context);
+        return fallbackMockStructure(type, context, error.message);
     }
 };
 
-const fallbackMockStructure = (type, context) => {
+const fallbackMockStructure = (type, context, errorMsg = 'Unknown') => {
     return [
+        { name: `DEBUG_ERROR: ${errorMsg}` },
         { name: `Sample ${type} 1 (${context})` },
-        { name: `Sample ${type} 2 (${context})` },
-        { name: `Sample ${type} 3 (${context})` },
-        { name: `Sample ${type} 4 (${context})` },
-        { name: `Sample ${type} 5 (${context})` }
+        { name: `Sample ${type} 2 (${context})` }
     ];
 };
 

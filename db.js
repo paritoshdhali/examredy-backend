@@ -304,6 +304,7 @@ const initDB = async () => {
 
         // Ensure GEMINI is there but active is managed by admin
         const geminiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY || '';
+        console.log(`AI Provider Sync: Key detected? ${!!geminiKey} (Source: ${process.env.AI_API_KEY ? 'AI_API_KEY' : (process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : 'NONE')})`);
         await query(`INSERT INTO ai_providers (name, base_url, api_key, model_name, is_active) 
             VALUES ('Google Gemini', 'https://generativelanguage.googleapis.com/v1beta/models', $1, 'gemini-1.5-flash', true) 
             ON CONFLICT (name) DO UPDATE SET api_key = $1 WHERE ai_providers.api_key IS NULL OR ai_providers.api_key = '';`, [geminiKey]);
