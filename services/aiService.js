@@ -2,7 +2,8 @@ const { query } = require('../db');
 const axios = require('axios');
 
 /**
- * Generates MCQs using the active AI provider (primarily Google Gemini).
+ * Generates MCQs using the active AI provider.
+ * Now with robust OpenRouter auto-detection.
  */
 const generateMCQInitial = async (topic, count = 5) => {
     try {
@@ -15,13 +16,14 @@ const generateMCQInitial = async (topic, count = 5) => {
         const provider = providerRes.rows[0];
         const { api_key, model_name, base_url } = provider;
 
-        // Auto-detect OpenRouter by key prefix if base_url is wrong
+        // --- ROBUST OPENROUTER DETECTION ---
         const isORKey = api_key?.startsWith('sk-or-');
         let effectiveBaseUrl = base_url;
+        // Check if it's already an OpenAI-compatible URL
         let isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com') || isORKey;
 
-        if (isORKey && !isOpenAI) {
-            isOpenAI = true;
+        // Force OpenRouter endpoint if key is OR but base_url isn't
+        if (isORKey && !base_url.includes('openrouter.ai')) {
             effectiveBaseUrl = 'https://openrouter.ai/api/v1';
         }
 
@@ -74,16 +76,16 @@ const generateMCQInitial = async (topic, count = 5) => {
     } catch (error) {
         const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : null) || error.message;
         console.error('AI Service Error:', JSON.stringify(error.response?.data || error.message));
-        return fallbackMock(topic, count);
+        return fallbackMock(topic, count, `[FIX-V1] ${errorDetail}`);
     }
 };
 
-const fallbackMock = (topic, count) => {
+const fallbackMock = (topic, count, errorMsg = '') => {
     return Array.from({ length: count }).map((_, i) => ({
         question: `[MOCK] ${topic} practice question ${i + 1}?`,
         options: ["Option 1", "Option 2", "Option 3", "Option 4"],
         correct_option: 0,
-        explanation: `This is a fallback mock explanation for ${topic}. Please check AI API configuration.`,
+        explanation: `This is a fallback mock explanation for ${topic}. ${errorMsg}`,
         subject: topic,
         chapter: 'General'
     }));
@@ -97,13 +99,12 @@ const fetchAIStructure = async (type, context) => {
         const provider = providerRes.rows[0];
         const { api_key, model_name, base_url } = provider;
 
-        // Auto-detect OpenRouter by key prefix if base_url is wrong
+        // --- ROBUST OPENROUTER DETECTION ---
         const isORKey = api_key?.startsWith('sk-or-');
         let effectiveBaseUrl = base_url;
         let isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com') || isORKey;
 
-        if (isORKey && !isOpenAI) {
-            isOpenAI = true;
+        if (isORKey && !base_url.includes('openrouter.ai')) {
             effectiveBaseUrl = 'https://openrouter.ai/api/v1';
         }
 
@@ -157,7 +158,7 @@ const fetchAIStructure = async (type, context) => {
     } catch (error) {
         const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : null) || error.message;
         console.error('AI Structure Fetch Error:', JSON.stringify(error.response?.data || error.message));
-        return fallbackMockStructure(type, context, errorDetail);
+        return fallbackMockStructure(type, context, `[FIX-V1] ${errorDetail}`);
     }
 };
 

@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 
 // Root API Route
 app.get('/api', (req, res) => {
-    res.json({ message: 'ExamRedy API is running', version: '1.2.1-OpenRouterFix' });
+    res.json({ message: 'ExamRedy API is running', version: '1.2.2-OR-Final-Fix' });
 });
 
 // Health Check
