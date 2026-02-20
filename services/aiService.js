@@ -14,7 +14,16 @@ const generateMCQInitial = async (topic, count = 5) => {
 
         const provider = providerRes.rows[0];
         const { api_key, model_name, base_url } = provider;
-        const isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com');
+
+        // Auto-detect OpenRouter by key prefix if base_url is wrong
+        const isORKey = api_key?.startsWith('sk-or-');
+        let effectiveBaseUrl = base_url;
+        let isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com') || isORKey;
+
+        if (isORKey && !isOpenAI) {
+            isOpenAI = true;
+            effectiveBaseUrl = 'https://openrouter.ai/api/v1';
+        }
 
         const prompt = `Generate exactly ${count} multiple-choice questions (MCQs) about the topic: "${topic}". 
         The output must be a valid JSON array of objects. Each object must have:
@@ -29,7 +38,8 @@ const generateMCQInitial = async (topic, count = 5) => {
 
         let response;
         if (isOpenAI) {
-            const endpoint = `${base_url}/chat/completions`.replace(/([^:])\/\//g, '$1/');
+            const endpoint = `${effectiveBaseUrl}/chat/completions`.replace(/([^:])\/\//g, '$1/');
+            console.log(`[AI-MCQ] Endpoint: ${endpoint}, Model: ${model_name}`);
             response = await axios.post(endpoint, {
                 model: model_name,
                 messages: [{ role: 'user', content: prompt }]
@@ -42,7 +52,8 @@ const generateMCQInitial = async (topic, count = 5) => {
                 }
             });
         } else {
-            const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
+            const endpoint = `${effectiveBaseUrl}/${model_name}:generateContent?key=${api_key}`;
+            console.log(`[AI-MCQ] Gemini Endpoint: ${endpoint.substring(0, 45)}...`);
             response = await axios.post(endpoint, {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { response_mime_type: "application/json" }
@@ -61,7 +72,7 @@ const generateMCQInitial = async (topic, count = 5) => {
         return mcqs.slice(0, count);
 
     } catch (error) {
-        const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+        const errorDetail = error.response?.data?.error?.message || error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : null) || error.message;
         console.error('AI Service Error:', JSON.stringify(error.response?.data || error.message));
         return fallbackMock(topic, count);
     }
@@ -85,16 +96,26 @@ const fetchAIStructure = async (type, context) => {
 
         const provider = providerRes.rows[0];
         const { api_key, model_name, base_url } = provider;
-        const isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com');
+
+        // Auto-detect OpenRouter by key prefix if base_url is wrong
+        const isORKey = api_key?.startsWith('sk-or-');
+        let effectiveBaseUrl = base_url;
+        let isOpenAI = base_url.includes('openrouter.ai') || base_url.includes('openai.com') || base_url.includes('api.openai.com') || isORKey;
+
+        if (isORKey && !isOpenAI) {
+            isOpenAI = true;
+            effectiveBaseUrl = 'https://openrouter.ai/api/v1';
+        }
 
         const prompt = `Generate a list of exactly 10 ${type} for the following context: "${context}". 
         Return the result as a valid JSON array of strings. 
         Example: ["Item 1", "Item 2", ...]
-        Return ONLY the JSON. STICK TO REAL OFFICIAL DATA.`;
+        Return ONLY valid JSON. NO MARKDOWN. NO EXPLANATIONS.`;
 
         let response;
         if (isOpenAI) {
-            const endpoint = `${base_url}/chat/completions`.replace(/([^:])\/\//g, '$1/');
+            const endpoint = `${effectiveBaseUrl}/chat/completions`.replace(/([^:])\/\//g, '$1/');
+            console.log(`[AI-STRUCT] Endpoint: ${endpoint}, Model: ${model_name}`);
             response = await axios.post(endpoint, {
                 model: model_name,
                 messages: [{ role: 'user', content: prompt }]
@@ -107,7 +128,8 @@ const fetchAIStructure = async (type, context) => {
                 }
             });
         } else {
-            const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
+            const endpoint = `${effectiveBaseUrl}/${model_name}:generateContent?key=${api_key}`;
+            console.log(`[AI-STRUCT] Gemini Endpoint: ${endpoint.substring(0, 45)}...`);
             response = await axios.post(endpoint, {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { response_mime_type: "application/json" }
