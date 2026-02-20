@@ -40,7 +40,7 @@ const generateMCQInitial = async (topic, count = 5) => {
                 topK: 40,
                 topP: 0.95,
                 maxOutputTokens: 2048,
-                responseMimeType: "application/json"
+                response_mime_type: "application/json"
             }
         });
 
@@ -97,7 +97,7 @@ const fetchAIStructure = async (type, context) => {
         const endpoint = `${base_url}/${model_name}:generateContent?key=${api_key}`;
         const response = await axios.post(endpoint, {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+            generationConfig: { response_mime_type: "application/json" }
         });
 
         const responseText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;

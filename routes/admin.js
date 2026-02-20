@@ -173,6 +173,11 @@ router.post('/universities', async (req, res) => {
     await query('INSERT INTO universities (name, state_id, logo_url) VALUES ($1, $2, $3)', [req.body.name, req.body.state_id, req.body.logo_url]);
     res.json({ message: 'University added' });
 });
+router.put('/universities/:id', async (req, res) => {
+    const { name, state_id, logo_url, is_active } = req.body;
+    await query('UPDATE universities SET name=$1, state_id=$2, logo_url=$3, is_active=$4 WHERE id=$5', [name, state_id, logo_url, is_active, req.params.id]);
+    res.json({ message: 'University updated' });
+});
 
 router.get('/degree-types', async (req, res) => {
     const result = await query('SELECT * FROM degree_types ORDER BY name ASC');
@@ -187,6 +192,14 @@ router.get('/semesters', async (req, res) => {
 router.get('/papers-stages', async (req, res) => {
     const result = await query('SELECT p.*, c.name as category_name FROM papers_stages p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.name ASC');
     res.json(result.rows);
+});
+router.post('/papers-stages', async (req, res) => {
+    await query('INSERT INTO papers_stages (name, category_id) VALUES ($1, $2)', [req.body.name, req.body.category_id]);
+    res.json({ message: 'Paper/Stage added' });
+});
+router.put('/papers-stages/:id', async (req, res) => {
+    await query('UPDATE papers_stages SET name=$1, category_id=$2, is_active=$3 WHERE id=$4', [req.body.name, req.body.category_id, req.body.is_active, req.params.id]);
+    res.json({ message: 'Paper/Stage updated' });
 });
 
 // --- 6. SUBJECTS & CHAPTERS ---
@@ -208,6 +221,12 @@ router.post('/subjects', async (req, res) => {
     await query('INSERT INTO subjects (name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]);
     res.json({ message: 'Subject added' });
 });
+router.put('/subjects/:id', async (req, res) => {
+    const { name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, is_active } = req.body;
+    await query(`UPDATE subjects SET name=$1, category_id=$2, board_id=$3, university_id=$4, class_id=$5, stream_id=$6, semester_id=$7, degree_type_id=$8, paper_stage_id=$9, is_active=$10 WHERE id=$11`,
+        [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, is_active, req.params.id]);
+    res.json({ message: 'Subject updated' });
+});
 
 router.get('/chapters', async (req, res) => {
     const result = await query('SELECT ch.*, sub.name as subject_name FROM chapters ch LEFT JOIN subjects sub ON ch.subject_id = sub.id ORDER BY ch.name ASC');
@@ -216,6 +235,11 @@ router.get('/chapters', async (req, res) => {
 router.post('/chapters', async (req, res) => {
     await query('INSERT INTO chapters (name, subject_id, description, sort_order) VALUES ($1, $2, $3, $4)', [req.body.name, req.body.subject_id, req.body.description, req.body.sort_order]);
     res.json({ message: 'Chapter added' });
+});
+router.put('/chapters/:id', async (req, res) => {
+    const { name, subject_id, description, sort_order, is_active } = req.body;
+    await query('UPDATE chapters SET name=$1, subject_id=$2, description=$3, sort_order=$4, is_active=$5 WHERE id=$6', [name, subject_id, description, sort_order, is_active, req.params.id]);
+    res.json({ message: 'Chapter updated' });
 });
 
 // --- 7. MCQ MANAGEMENT ---

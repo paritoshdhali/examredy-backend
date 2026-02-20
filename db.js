@@ -160,7 +160,7 @@ const initDB = async () => {
         // Hierarchy Tables
         await query(`CREATE TABLE IF NOT EXISTS boards (
             id SERIAL PRIMARY KEY, 
-            name VARCHAR(100) NOT NULL, 
+            name VARCHAR(500) NOT NULL, 
             state_id INTEGER REFERENCES states(id), 
             logo_url TEXT, 
             is_active BOOLEAN DEFAULT TRUE,
@@ -175,15 +175,15 @@ const initDB = async () => {
         );`);
         await query(`CREATE TABLE IF NOT EXISTS streams (
             id SERIAL PRIMARY KEY, 
-            name VARCHAR(100) UNIQUE NOT NULL, 
+            name VARCHAR(500) UNIQUE NOT NULL, 
             is_active BOOLEAN DEFAULT TRUE
         );`);
 
-        await query(`CREATE TABLE IF NOT EXISTS universities (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, state_id INTEGER REFERENCES states(id), logo_url TEXT, is_active BOOLEAN DEFAULT TRUE);`);
+        await query(`CREATE TABLE IF NOT EXISTS universities (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, state_id INTEGER REFERENCES states(id), logo_url TEXT, is_active BOOLEAN DEFAULT TRUE);`);
         try { await query(`ALTER TABLE universities ADD CONSTRAINT unique_university_state UNIQUE (state_id, name);`); } catch (e) { }
         try { await query(`ALTER TABLE universities ADD COLUMN IF NOT EXISTS logo_url TEXT;`); } catch (e) { }
 
-        await query(`CREATE TABLE IF NOT EXISTS degree_types (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
+        await query(`CREATE TABLE IF NOT EXISTS degree_types (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
         const defaultDegrees = ['Pass', 'Honours'];
         for (const deg of defaultDegrees) {
             await query(`INSERT INTO degree_types (name) SELECT $1::varchar WHERE NOT EXISTS (SELECT 1 FROM degree_types WHERE name = $1::varchar);`, [deg]);
@@ -191,7 +191,7 @@ const initDB = async () => {
 
         await query(`CREATE TABLE IF NOT EXISTS semesters (id SERIAL PRIMARY KEY, name VARCHAR(50) NOT NULL, university_id INTEGER REFERENCES universities(id), is_active BOOLEAN DEFAULT TRUE);`);
 
-        await query(`CREATE TABLE IF NOT EXISTS papers_stages (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, category_id INTEGER REFERENCES categories(id), is_active BOOLEAN DEFAULT TRUE);`);
+        await query(`CREATE TABLE IF NOT EXISTS papers_stages (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, category_id INTEGER REFERENCES categories(id), is_active BOOLEAN DEFAULT TRUE);`);
         try { await query(`ALTER TABLE papers_stages ADD CONSTRAINT unique_paper_category UNIQUE (category_id, name);`); } catch (e) { }
 
         // Auto-create Classes
@@ -208,7 +208,7 @@ const initDB = async () => {
 
         await query(`CREATE TABLE IF NOT EXISTS subjects (
             id SERIAL PRIMARY KEY, 
-            name VARCHAR(100) NOT NULL, 
+            name VARCHAR(500) NOT NULL, 
             category_id INTEGER REFERENCES categories(id), 
             board_id INTEGER REFERENCES boards(id), 
             university_id INTEGER REFERENCES universities(id), 
@@ -237,7 +237,7 @@ const initDB = async () => {
 
         await query(`CREATE TABLE IF NOT EXISTS chapters (
             id SERIAL PRIMARY KEY, 
-            name VARCHAR(100) NOT NULL, 
+            name VARCHAR(500) NOT NULL, 
             subject_id INTEGER REFERENCES subjects(id), 
             description TEXT, 
             sort_order INTEGER DEFAULT 0, 
