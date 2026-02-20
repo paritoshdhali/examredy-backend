@@ -335,6 +335,33 @@ const initDB = async () => {
             } catch (e) { }
         }
 
+        // --- SCHEMA REPAIR: Dupe Cleanup & UNIQUE Constraints for ON CONFLICT ---
+        const repairConfigs = [
+            { table: 'boards', cols: ['state_id', 'name'], name: 'unique_board_per_state' },
+            { table: 'universities', cols: ['state_id', 'name'], name: 'unique_university_state' },
+            { table: 'papers_stages', cols: ['category_id', 'name'], name: 'unique_paper_category' },
+            { table: 'chapters', cols: ['subject_id', 'name'], name: 'unique_chapter_per_subject' }
+        ];
+
+        for (const cfg of repairConfigs) {
+            try {
+                console.log(`Repairing schema for ${cfg.table}...`);
+                // 1. Delete duplicates based on the target columns
+                const colA = cfg.cols[0];
+                const colB = cfg.cols[1];
+                await query(`DELETE FROM ${cfg.table} a USING ${cfg.table} b 
+                             WHERE a.id < b.id 
+                             AND (a.${colA} = b.${colA} OR (a.${colA} IS NULL AND b.${colA} IS NULL)) 
+                             AND a.${colB} = b.${colB};`);
+
+                // 2. Add the UNIQUE constraint
+                await query(`ALTER TABLE ${cfg.table} ADD CONSTRAINT ${cfg.name} UNIQUE (${cfg.cols.join(', ')});`);
+                console.log(`✅ Constraint ${cfg.name} enforced on ${cfg.table}.`);
+            } catch (e) {
+                // If it already exists, this will fail silently which is fine
+            }
+        }
+
         // SEO and Site Config (Requirement 8)
         const siteDefaults = {
             'SITE_TITLE': 'ExamRedy - AI MCQ Practice',
