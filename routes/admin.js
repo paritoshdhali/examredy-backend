@@ -180,6 +180,22 @@ router.put('/boards/:id', async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Delete ALL boards for a specific state (used for AI re-sync)
+router.delete('/boards/state/:state_id', async (req, res) => {
+    try {
+        const result = await query('DELETE FROM boards WHERE state_id = $1 RETURNING id', [req.params.state_id]);
+        res.json({ success: true, deleted: result.rowCount, message: `${result.rowCount} boards cleared for re-sync` });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Delete ALL universities for a specific state (used for AI re-sync)
+router.delete('/universities/state/:state_id', async (req, res) => {
+    try {
+        const result = await query('DELETE FROM universities WHERE state_id = $1 RETURNING id', [req.params.state_id]);
+        res.json({ success: true, deleted: result.rowCount });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 router.get('/classes', async (req, res) => {
     const result = await query('SELECT * FROM classes ORDER BY id ASC');
     res.json(result.rows);
