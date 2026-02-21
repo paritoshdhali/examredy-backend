@@ -658,7 +658,8 @@ router.put('/settings/ads', async (req, res) => {
             'ADS_ENABLED': String(req.body.ADS_ENABLED),
             'ADS_TOP_BANNER': req.body.ADS_TOP_BANNER,
             'ADS_MID_CONTENT': req.body.ADS_MID_CONTENT,
-            'ADS_BOTTOM_BANNER': req.body.ADS_BOTTOM_BANNER
+            'ADS_BOTTOM_BANNER': req.body.ADS_BOTTOM_BANNER,
+            'ADS_FOR_PREMIUM': String(req.body.ADS_FOR_PREMIUM)
         };
         for (const [key, value] of Object.entries(keys)) {
             if (value !== undefined) {
