@@ -133,6 +133,12 @@ router.get('/states', async (req, res) => {
     const result = await query('SELECT * FROM states ORDER BY name ASC');
     res.json(result.rows);
 });
+router.post('/states', async (req, res) => {
+    try {
+        const result = await query('INSERT INTO states (name, is_active) VALUES ($1, TRUE) RETURNING *', [req.body.name]);
+        res.json({ success: true, state: result.rows[0] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 router.put('/states/:id', async (req, res) => {
     await query('UPDATE states SET name=$1, is_active=$2 WHERE id=$3', [req.body.name, req.body.is_active, req.params.id]);
     res.json({ message: 'State updated' });
@@ -141,6 +147,12 @@ router.put('/states/:id', async (req, res) => {
 router.get('/languages', async (req, res) => {
     const result = await query('SELECT * FROM languages ORDER BY name ASC');
     res.json(result.rows);
+});
+router.post('/languages', async (req, res) => {
+    try {
+        const result = await query('INSERT INTO languages (name, is_active) VALUES ($1, TRUE) RETURNING *', [req.body.name]);
+        res.json({ success: true, language: result.rows[0] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.put('/languages/:id', async (req, res) => {
     await query('UPDATE languages SET name=$1, is_active=$2 WHERE id=$3', [req.body.name, req.body.is_active, req.params.id]);
@@ -284,6 +296,22 @@ router.get('/mcqs', async (req, res) => {
     res.json(result.rows);
 });
 
+// MCQ Approve
+router.put('/mcqs/:id/approve', async (req, res) => {
+    try {
+        await query('UPDATE mcq_pool SET is_approved = TRUE WHERE id = $1', [req.params.id]);
+        res.json({ message: 'MCQ approved' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// MCQ Delete
+router.delete('/mcqs/:id', async (req, res) => {
+    try {
+        await query('DELETE FROM mcq_pool WHERE id = $1', [req.params.id]);
+        res.json({ message: 'MCQ deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Generic toggle for approval (Requirement 2 & 3)
 router.put('/approve/:table/:id', async (req, res) => {
     const { table, id } = req.params;
@@ -296,12 +324,21 @@ router.put('/approve/:table/:id', async (req, res) => {
 
 router.delete('/:table/:id', async (req, res) => {
     const { table, id } = req.params;
-    const allowedTables = ['boards', 'universities', 'subjects', 'chapters', 'papers_stages', 'degree_types', 'semesters', 'mcqs'];
-    const actualTable = table === 'mcqs' ? 'mcq_pool' : table;
-    if (!allowedTables.includes(table)) return res.status(400).json({ message: 'Invalid table' });
+    const allowedTables = ['boards', 'universities', 'subjects', 'chapters', 'papers_stages', 'degree_types', 'semesters'];
+    const tableMap = {
+        'streams': 'streams',
+        'languages': 'languages',
+        'states': 'states',
+        'categories': 'categories',
+        'ai-providers': 'ai_providers'
+    };
+    const actualTable = tableMap[table] || table;
+    if (!allowedTables.includes(table) && !tableMap[table]) return res.status(400).json({ message: 'Invalid table' });
 
-    await query(`DELETE FROM ${actualTable} WHERE id = $1`, [id]);
-    res.json({ message: 'Item deleted' });
+    try {
+        await query(`DELETE FROM ${actualTable} WHERE id = $1`, [id]);
+        res.json({ message: 'Item deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- 8. AI MANAGEMENT ---
@@ -345,17 +382,39 @@ router.get('/ai-providers', async (req, res) => {
     res.json(result.rows);
 });
 
+router.post('/ai-providers', async (req, res) => {
+    try {
+        const { name, base_url, api_key, model_name } = req.body;
+        const result = await query(
+            'INSERT INTO ai_providers (name, base_url, api_key, model_name, is_active) VALUES ($1, $2, $3, $4, FALSE) RETURNING *',
+            [name, base_url || '', api_key || '', model_name || '']
+        );
+        res.json({ message: 'AI Provider added', provider: result.rows[0] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.put('/ai-providers/:id', async (req, res) => {
-    const { name, base_url, api_key, model_name, is_active } = req.body;
-    await query('UPDATE ai_providers SET name=$1, base_url=$2, api_key=$3, model_name=$4, is_active=$5 WHERE id=$6', [name, base_url, api_key, model_name, is_active, req.params.id]);
-    res.json({ message: 'AI Provider configuration updated' });
+    try {
+        const { name, base_url, api_key, model_name, is_active } = req.body;
+        await query('UPDATE ai_providers SET name=$1, base_url=$2, api_key=$3, model_name=$4, is_active=$5 WHERE id=$6', [name, base_url, api_key, model_name, is_active, req.params.id]);
+        res.json({ message: 'AI Provider configuration updated' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/ai-providers/:id/status', async (req, res) => {
-    const { is_active } = req.body;
-    if (is_active) await query('UPDATE ai_providers SET is_active = FALSE');
-    await query('UPDATE ai_providers SET is_active = $1 WHERE id = $2', [is_active, req.params.id]);
-    res.json({ message: 'AI Provider status toggled' });
+    try {
+        const { is_active } = req.body;
+        if (is_active) await query('UPDATE ai_providers SET is_active = FALSE');
+        await query('UPDATE ai_providers SET is_active = $1 WHERE id = $2', [is_active, req.params.id]);
+        res.json({ message: 'AI Provider status toggled' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/ai-providers/:id', async (req, res) => {
+    try {
+        await query('DELETE FROM ai_providers WHERE id = $1', [req.params.id]);
+        res.json({ message: 'AI Provider deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- 9. SUBSCRIPTIONS & REFERRALS ---
