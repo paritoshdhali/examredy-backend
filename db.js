@@ -253,7 +253,14 @@ const initDB = async () => {
 
         // Other System Tables
         await query(`CREATE TABLE IF NOT EXISTS subscription_plans (id SERIAL PRIMARY KEY, name VARCHAR(50) NOT NULL, duration_hours INTEGER NOT NULL, price DECIMAL(10, 2) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
-        await query(`INSERT INTO subscription_plans (name, duration_hours, price) VALUES ('1 Hour Pass', 1, 10), ('3 Hour Pass', 3, 25) ON CONFLICT DO NOTHING;`);
+
+        // Clean up duplicates and add unique constraint
+        try {
+            await query(`DELETE FROM subscription_plans a USING subscription_plans b WHERE a.id < b.id AND a.name = b.name;`);
+            await query(`ALTER TABLE subscription_plans ADD CONSTRAINT unique_plan_name UNIQUE (name);`);
+        } catch (e) { }
+
+        await query(`INSERT INTO subscription_plans (name, duration_hours, price) VALUES ('1 Hour Pass', 1, 10), ('3 Hour Pass', 3, 25) ON CONFLICT (name) DO NOTHING;`);
         await query(`CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), razorpay_order_id VARCHAR(100), razorpay_payment_id VARCHAR(100), amount DECIMAL(10, 2), status VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await query(`CREATE TABLE IF NOT EXISTS referrals (id SERIAL PRIMARY KEY, referrer_id INTEGER REFERENCES users(id), referred_user_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', reward_given BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
 
