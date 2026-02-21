@@ -570,12 +570,24 @@ router.post('/plans', async (req, res) => {
 router.put('/plans/:id', async (req, res) => {
     try {
         const { name, duration_hours, price, is_active } = req.body;
+        console.log(`[ADMIN-PLANS] Updating plan ${req.params.id}:`, { name, duration_hours, price, is_active });
+
         const result = await query(
             'UPDATE subscription_plans SET name=$1, duration_hours=$2, price=$3, is_active=$4 WHERE id=$5',
-            [name, parseInt(duration_hours), parseFloat(price), is_active, req.params.id]
+            [name, parseInt(duration_hours) || 0, parseFloat(price) || 0, is_active === true, parseInt(req.params.id)]
         );
-        res.json({ success: true, message: 'Plan updated' });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+
+        if (result.rowCount === 0) {
+            console.warn(`[ADMIN-PLANS] No plan found with ID ${req.params.id}`);
+            return res.status(404).json({ success: false, error: 'Plan not found or no changes made' });
+        }
+
+        console.log(`[ADMIN-PLANS] Success: Plan ${req.params.id} updated.`);
+        res.json({ success: true, message: 'Plan updated successfully' });
+    } catch (e) {
+        console.error('[ADMIN-PLANS] Update failed:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 router.put('/plans/:id/status', async (req, res) => {
