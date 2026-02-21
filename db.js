@@ -231,6 +231,7 @@ const initDB = async () => {
         try {
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES categories(id);`);
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS university_id INTEGER REFERENCES universities(id);`);
+            await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS semester_id INTEGER REFERENCES semesters(id);`);
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS degree_type_id INTEGER REFERENCES degree_types(id);`);
             await query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS paper_stage_id INTEGER REFERENCES papers_stages(id);`);
         } catch (e) { }
