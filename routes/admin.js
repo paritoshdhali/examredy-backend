@@ -584,6 +584,22 @@ router.put('/settings/seo', async (req, res) => {
     res.json({ message: 'SEO settings updated' });
 });
 
+router.put('/settings/referral', async (req, res) => {
+    try {
+        const { REFERRAL_REWARD_DAYS, REFERRAL_MIN_PURCHASE_RS } = req.body;
+        const keys = {
+            'REFERRAL_REWARD_DAYS': REFERRAL_REWARD_DAYS,
+            'REFERRAL_MIN_PURCHASE_RS': REFERRAL_MIN_PURCHASE_RS
+        };
+        for (const [key, value] of Object.entries(keys)) {
+            if (value !== undefined) {
+                await query('INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2', [key, String(value)]);
+            }
+        }
+        res.json({ success: true, message: 'Referral rules updated' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.put('/settings/payments/:provider', async (req, res) => {
     const { provider } = req.params;
     const { api_key, api_secret, is_active } = req.body;
