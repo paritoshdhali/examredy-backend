@@ -234,6 +234,51 @@ router.post('/streams', verifyToken, admin, async (req, res) => {
     }
 });
 
+// @route   POST /api/ai-fetch/semesters
+// Returns the semesters or years relevant for a given University + Degree Type
+router.post('/semesters', verifyToken, admin, async (req, res) => {
+    const { university_id, university_name, degree_type_name } = req.body;
+    try {
+        const aiItems = await fetchAIStructure(
+            'Terms',
+            `University: "${university_name}", Degree: "${degree_type_name}" (India). List the academic terms used (e.g., "Semester 1", "Semester 2", or "1st Year", "2nd Year"). Return only the names of the terms.`
+        );
+
+        const resultSemesters = [];
+        for (const item of aiItems) {
+            const name = (item.name || '').trim().substring(0, 100);
+            if (!name) continue;
+
+            // Insert into semesters table
+            const r = await query(
+                `INSERT INTO semesters (name, university_id) 
+                 VALUES ($1, $2) 
+                 ON CONFLICT (university_id, name) DO NOTHING RETURNING *;`,
+                [name, university_id]
+            );
+
+            if (r.rows[0]) {
+                resultSemesters.push(r.rows[0]);
+            } else {
+                const existing = await query(
+                    `SELECT * FROM semesters WHERE university_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`,
+                    [university_id, name]
+                );
+                if (existing.rows[0]) resultSemesters.push(existing.rows[0]);
+            }
+        }
+
+        res.json({
+            success: true,
+            semesters: resultSemesters,
+            message: `${resultSemesters.length} terms loaded for ${university_name}`
+        });
+    } catch (error) {
+        console.error('AI Fetch Semesters Error:', error);
+        res.status(500).json({ message: error.message || 'Server error during semester fetch' });
+    }
+});
+
 // @route   POST /api/ai-fetch/subjects
 router.post('/subjects', verifyToken, admin, async (req, res) => {
     const { category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, context_name } = req.body;

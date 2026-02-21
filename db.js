@@ -190,6 +190,7 @@ const initDB = async () => {
         }
 
         await query(`CREATE TABLE IF NOT EXISTS semesters (id SERIAL PRIMARY KEY, name VARCHAR(50) NOT NULL, university_id INTEGER REFERENCES universities(id), is_active BOOLEAN DEFAULT TRUE);`);
+        try { await query(`ALTER TABLE semesters ADD CONSTRAINT unique_semester_university UNIQUE (university_id, name);`); } catch (e) { }
 
         await query(`CREATE TABLE IF NOT EXISTS papers_stages (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, category_id INTEGER REFERENCES categories(id), is_active BOOLEAN DEFAULT TRUE);`);
         try { await query(`ALTER TABLE papers_stages ADD CONSTRAINT unique_paper_category UNIQUE (category_id, name);`); } catch (e) { }
