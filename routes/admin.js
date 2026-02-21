@@ -103,6 +103,26 @@ router.post('/users/:id/reset-usage', async (req, res) => {
     res.json({ message: 'Usage reset' });
 });
 
+router.get('/users/:id/activity', async (req, res) => {
+    try {
+        const history = await query(`
+            SELECT h.*, m.question, m.correct_option 
+            FROM user_mcq_history h 
+            JOIN mcq_pool m ON h.mcq_id = m.id 
+            WHERE h.user_id = $1 
+            ORDER BY h.attempted_at DESC 
+            LIMIT 50
+        `, [req.params.id]);
+
+        const usage = await query('SELECT count FROM user_daily_usage WHERE user_id = $1 AND date = CURRENT_DATE', [req.params.id]);
+
+        res.json({
+            history: history.rows,
+            todayCount: usage.rows[0]?.count || 0
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.put('/users/:id/status', async (req, res) => {
     try {
         await query('UPDATE users SET is_active = $1 WHERE id = $2', [req.body.is_active, req.params.id]);
