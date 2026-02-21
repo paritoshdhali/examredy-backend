@@ -131,6 +131,33 @@ router.put('/users/:id/status', async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// --- 2.5 DASHBOARD OVERVIEW ---
+router.get('/dashboard/stats', async (req, res) => {
+    try {
+        const totalUsers = await query('SELECT COUNT(*) FROM users');
+        const premiumUsers = await query('SELECT COUNT(*) FROM users WHERE is_premium = true');
+        const totalMcqs = await query('SELECT COUNT(*) FROM mcq_pool');
+        const revenue = await query("SELECT SUM(amount) FROM payments WHERE status = 'success'");
+
+        const recentActivity = await query(`
+            SELECT u.username, u.email, du.count, du.date 
+            FROM user_daily_usage du 
+            JOIN users u ON du.user_id = u.id 
+            ORDER BY du.date DESC LIMIT 10
+        `);
+
+        res.json({
+            stats: {
+                totalUsers: parseInt(totalUsers.rows[0].count),
+                premiumUsers: parseInt(premiumUsers.rows[0].count),
+                totalMcqs: parseInt(totalMcqs.rows[0].count),
+                totalRevenue: parseFloat(revenue.rows[0].sum || 0)
+            },
+            recentActivity: recentActivity.rows
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 // --- 3. CATEGORIES & STRUCTURE (STATES, LANGUAGES) ---
 
