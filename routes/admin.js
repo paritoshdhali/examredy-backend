@@ -359,6 +359,34 @@ router.get('/mcqs', async (req, res) => {
     res.json(result.rows);
 });
 
+// --- 0. BULK APPROVAL SYSTEM ---
+router.put('/bulk-approve', async (req, res) => {
+    try {
+        const { type, ids } = req.body;
+        if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ success: false, message: 'Invalid payload' });
+        }
+
+        // Strict mapping of valid table types to prevent SQL injection
+        const tableMap = {
+            'boards': 'boards',
+            'universities': 'universities',
+            'papers_stages': 'papers_stages',
+            'subjects': 'subjects',
+            'chapters': 'chapters'
+        };
+
+        const tableName = tableMap[type];
+        if (!tableName) return res.status(400).json({ success: false, message: 'Invalid structure type' });
+
+        const result = await query(`UPDATE ${tableName} SET is_active = TRUE WHERE id = ANY($1) RETURNING id`, [ids]);
+        res.json({ success: true, message: `${result.rowCount} items approved successfully` });
+    } catch (e) {
+        console.error('Bulk Approve Error:', e);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // --- 1. DASHBOARD & ANALYTICS ---
 
 router.get('/stats', async (req, res) => {

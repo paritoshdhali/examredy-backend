@@ -86,7 +86,7 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
 
                 const result = await query(
                     'INSERT INTO boards (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *',
-                    [name, state_id, true]
+                    [name, state_id, false]
                 );
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
@@ -127,7 +127,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
             for (const item of universities) {
                 const name = (item.name || '').substring(0, 200);
                 if (name.toLowerCase().includes('university ') || name.toLowerCase().includes('placeholder') || name.startsWith('DEBUG_ERROR')) continue;
-                const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *', [name, state_id, true]);
+                const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *', [name, state_id, false]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
                 } else {
@@ -163,7 +163,7 @@ router.post('/papers', verifyToken, admin, async (req, res) => {
         try {
             for (const item of papers) {
                 const name = (item.name || '').substring(0, 200);
-                const result = await query('INSERT INTO papers_stages (name, category_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (category_id, name) DO NOTHING RETURNING *', [name, category_id, true]);
+                const result = await query('INSERT INTO papers_stages (name, category_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (category_id, name) DO NOTHING RETURNING *', [name, category_id, false]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
                 } else {
@@ -313,7 +313,7 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
                     `INSERT INTO subjects (
                         name, category_id, board_id, university_id, class_id, stream_id,
                         semester_id, degree_type_id, paper_stage_id, is_active
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE) RETURNING *`,
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE) RETURNING *`,
                     [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]
                 );
                 if (result.rows[0]) {
@@ -354,7 +354,7 @@ router.post('/chapters', verifyToken, admin, async (req, res) => {
                 if (isPlaceholder || name.toLowerCase().includes('placeholder') || name.startsWith('DEBUG_ERROR')) continue;
 
                 const result = await query(
-                    'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
+                    'INSERT INTO chapters (name, subject_id, is_active) VALUES ($1, $2, FALSE) ON CONFLICT (subject_id, name) DO NOTHING RETURNING *',
                     [name, subject_id]
                 );
                 if (result.rows[0]) {
