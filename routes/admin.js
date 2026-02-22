@@ -377,8 +377,14 @@ router.put('/bulk-approve', async (req, res) => {
 
         // Strict mapping of valid table types to prevent SQL injection
         const tableMap = {
+            'categories': 'categories',
+            'states': 'states',
             'boards': 'boards',
+            'classes': 'classes',
+            'streams': 'streams',
             'universities': 'universities',
+            'degree_types': 'degree_types',
+            'semesters': 'semesters',
             'papers_stages': 'papers_stages',
             'subjects': 'subjects',
             'chapters': 'chapters'
