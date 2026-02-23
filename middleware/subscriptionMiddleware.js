@@ -1,5 +1,6 @@
 const subscriptionCheck = (req, res, next) => {
     if (req.user && (req.user.role === 'admin' || (req.user.is_premium && new Date(req.user.premium_expiry) > new Date()))) {
+        req.isPremium = true;
         next();
     } else {
         // Here we could handle free limit logic or return specific code
