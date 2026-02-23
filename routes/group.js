@@ -3,6 +3,7 @@ const router = express.Router();
 const { query } = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 const crypto = require('crypto');
+const { generateMCQInitial } = require('../services/aiService');
 
 // @route   GET /api/group
 // @desc    Group service health check
@@ -137,9 +138,24 @@ router.post('/join', verifyToken, async (req, res) => {
 
 // @route   POST /api/group/start
 // @desc    Start the battle (Host only)
+// @route   POST /api/group/start
+// @desc    Start the battle (Host only)
 // @access  Private
 router.post('/start', verifyToken, async (req, res) => {
-    const { code, categoryId, boardId, classId, streamId, semesterId, universityId, paperStageId, subjectId, chapterId } = req.body;
+    const {
+        code,
+        categoryId,
+        boardId,
+        classId,
+        streamId,
+        semesterId,
+        universityId,
+        paperStageId,
+        subjectId,
+        chapterId,
+        language = 'English'
+    } = req.body;
+
     try {
         const sessionRes = await query('SELECT * FROM group_sessions WHERE id = $1', [code]);
         if (sessionRes.rows.length === 0) return res.status(404).json({ message: 'Session not found' });
@@ -149,46 +165,99 @@ router.post('/start', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Only host can start' });
         }
 
-        // Build dynamic query for MCQs
-        let mcqParams = [categoryId];
-        let mcqQueryStr = `SELECT id, question, options, correct_option, explanation FROM mcq_pool WHERE category_id = $1 AND is_approved = TRUE`;
+        // 1. Resolve Hierarchy IDs to Topic Name
+        let topicParts = [];
 
+        // Category
+        if (categoryId) {
+            const cat = await query('SELECT name FROM categories WHERE id = $1', [categoryId]);
+            if (cat.rows[0]) topicParts.push(cat.rows[0].name);
+        }
+        // Board
+        if (boardId) {
+            const board = await query('SELECT name FROM boards WHERE id = $1', [boardId]);
+            if (board.rows[0]) topicParts.push(board.rows[0].name);
+        }
+        // Class
+        if (classId) {
+            const cls = await query('SELECT name FROM classes WHERE id = $1', [classId]);
+            if (cls.rows[0]) topicParts.push(cls.rows[0].name);
+        }
+        // Stream
+        if (streamId) {
+            const stream = await query('SELECT name FROM streams WHERE id = $1', [streamId]);
+            if (stream.rows[0]) topicParts.push(stream.rows[0].name);
+        }
+        // University
+        if (universityId) {
+            const uni = await query('SELECT name FROM universities WHERE id = $1', [universityId]);
+            if (uni.rows[0]) topicParts.push(uni.rows[0].name);
+        }
+        // Subject
+        if (subjectId) {
+            const sub = await query('SELECT name FROM subjects WHERE id = $1', [subjectId]);
+            if (sub.rows[0]) topicParts.push(sub.rows[0].name);
+        }
+        // Chapter
         if (chapterId) {
-            mcqParams.push(chapterId);
-            mcqQueryStr += ` AND chapter_id = $${mcqParams.length}`;
-        } else if (subjectId) { // If chapterId is not provided, try subjectId
-            mcqParams.push(subjectId);
-            mcqQueryStr += ` AND subject_id = $${mcqParams.length}`;
+            const chap = await query('SELECT name FROM chapters WHERE id = $1', [chapterId]);
+            if (chap.rows[0]) topicParts.push(chap.rows[0].name);
         }
 
-        // Add additional filters if provided
-        if (boardId) { mcqParams.push(boardId); mcqQueryStr += ` AND board_id = $${mcqParams.length}`; }
-        if (classId) { mcqParams.push(classId); mcqQueryStr += ` AND class_id = $${mcqParams.length}`; }
-        if (streamId) { mcqParams.push(streamId); mcqQueryStr += ` AND stream_id = $${mcqParams.length}`; }
-        if (semesterId) { mcqParams.push(semesterId); mcqQueryStr += ` AND semester_id = $${mcqParams.length}`; }
-        if (universityId) { mcqParams.push(universityId); mcqQueryStr += ` AND university_id = $${mcqParams.length}`; }
-        if (paperStageId) { mcqParams.push(paperStageId); mcqQueryStr += ` AND paper_stage_id = $${mcqParams.length}`; }
+        const topic = topicParts.length > 0 ? topicParts.join(' ') : 'General Knowledge';
 
-        mcqQueryStr += ` ORDER BY RANDOM() LIMIT 10`;
+        // 2. Generate MCQs using AI
+        console.log(`[GroupBattle] Generating 10 MCQs for topic: ${topic} in ${language}`);
+        const generatedMcqs = await generateMCQInitial(topic, 10, language);
 
-        const mcqQuery = await query(mcqQueryStr, mcqParams);
-
-        if (mcqQuery.rows.length === 0) {
-            return res.status(400).json({ message: 'No questions available for this selection' });
+        if (!generatedMcqs || generatedMcqs.length === 0) {
+            return res.status(500).json({ message: 'Failed to generate questions. Please try again.' });
         }
 
-        const questions = mcqQuery.rows;
-        const mcqIds = questions.map(r => r.id);
+        // 3. Save to mcq_pool and get IDs
+        const mcqIds = [];
+        const finalQuestions = [];
 
+        for (const mcq of generatedMcqs) {
+            const normalizedQuestion = mcq.question.trim().toLowerCase().replace(/\s+/g, ' ');
+            const hash = crypto.createHash('sha256').update(normalizedQuestion).digest('hex');
+
+            try {
+                // Check if already exists by hash
+                const existing = await query('SELECT id, question, options, correct_option, explanation FROM mcq_pool WHERE question_hash = $1', [hash]);
+
+                if (existing.rows.length > 0) {
+                    mcqIds.push(existing.rows[0].id);
+                    finalQuestions.push(existing.rows[0]);
+                } else {
+                    const result = await query(
+                        `INSERT INTO mcq_pool (question, options, correct_option, explanation, category_id, subject, chapter, is_approved, question_hash) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                         RETURNING id, question, options, correct_option, explanation`,
+                        [mcq.question, JSON.stringify(mcq.options), mcq.correct_option, mcq.explanation, categoryId, topicParts[topicParts.length - 2] || '', topicParts[topicParts.length - 1] || '', true, hash]
+                    );
+                    mcqIds.push(result.rows[0].id);
+                    finalQuestions.push(result.rows[0]);
+                }
+            } catch (err) {
+                console.error('Error saving group MCQ:', err.message);
+            }
+        }
+
+        if (mcqIds.length === 0) {
+            return res.status(500).json({ message: 'Database error saving questions.' });
+        }
+
+        // 4. Update session
         await query(
             'UPDATE group_sessions SET status = \'active\', category_id = $1, mcq_ids = $2 WHERE id = $3',
             [categoryId, JSON.stringify(mcqIds), code]
         );
 
-        res.json({ message: 'Battle started', questions });
+        res.json({ message: 'Battle started', questions: finalQuestions });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error starting battle' });
     }
 });
 
