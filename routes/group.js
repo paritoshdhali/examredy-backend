@@ -30,7 +30,65 @@ router.post('/create', verifyToken, async (req, res) => {
             [code, req.user.id]
         );
 
-        res.json({ session: result.rows[0], code });
+        res.json({ session: result.rows[0], code, isHost: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/group/:code/status
+// @desc    Get session status and participants
+// @access  Private
+router.get('/:code/status', verifyToken, async (req, res) => {
+    const { code } = req.params;
+    try {
+        const sessionRes = await query(`
+            SELECT gs.*, u.username as creator_name 
+            FROM group_sessions gs
+            JOIN users u ON gs.creator_id = u.id
+            WHERE gs.id = $1 AND gs.is_active = TRUE
+        `, [code]);
+
+        if (sessionRes.rows.length === 0) {
+            return res.status(404).json({ message: 'Session not found' });
+        }
+
+        const session = sessionRes.rows[0];
+
+        const participantsRes = await query(`
+            SELECT u.username, u.id as user_id, gp.score
+            FROM group_participants gp
+            JOIN users u ON gp.user_id = u.id
+            WHERE gp.session_id = $1
+            ORDER BY gp.joined_at ASC
+        `, [code]);
+
+        let questions = [];
+        if (session.status === 'active' && session.mcq_ids) {
+            // Fetch the questions for the session
+            const ids = typeof session.mcq_ids === 'string' ? JSON.parse(session.mcq_ids) : session.mcq_ids;
+            const mcqRes = await query(`
+                SELECT id, question, options, correct_option, explanation 
+                FROM mcq_pool 
+                WHERE id = ANY($1)
+            `, [ids]);
+            // Sort to match mcq_ids order
+            questions = ids.map(id => mcqRes.rows.find(r => r.id === id)).filter(Boolean);
+        }
+
+        res.json({
+            status: session.status,
+            categoryId: session.category_id,
+            isHost: session.creator_id === req.user.id,
+            questions,
+            participants: participantsRes.rows.map(p => ({
+                username: p.username,
+                userId: p.user_id,
+                score: p.score,
+                isHost: p.user_id === session.creator_id
+            }))
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -49,12 +107,16 @@ router.post('/join', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Session not found or inactive' });
         }
 
+        if (session.rows[0].status !== 'lobby') {
+            return res.status(400).json({ message: 'Session already started or finished' });
+        }
+
         // Check group size limit
         const participants = await query('SELECT count(*) FROM group_participants WHERE session_id = $1', [code]);
         const count = parseInt(participants.rows[0].count);
 
         const settings = await query('SELECT value FROM system_settings WHERE key = \'GROUP_SIZE_LIMIT\'');
-        const limit = parseInt(settings.rows[0].value);
+        const limit = parseInt(settings.rows[0].value || '10');
 
         if (count >= limit) {
             return res.status(400).json({ message: 'Group full' });
@@ -66,10 +128,49 @@ router.post('/join', verifyToken, async (req, res) => {
             [code, req.user.id]
         );
 
-        res.json({ message: 'Joined session', code });
+        res.json({ message: 'Joined session', code, isHost: session.rows[0].creator_id === req.user.id });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error check' });
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   POST /api/group/start
+// @desc    Start the battle (Host only)
+// @access  Private
+router.post('/start', verifyToken, async (req, res) => {
+    const { code, categoryId } = req.body;
+    try {
+        const sessionRes = await query('SELECT * FROM group_sessions WHERE id = $1', [code]);
+        if (sessionRes.rows.length === 0) return res.status(404).json({ message: 'Session not found' });
+
+        const session = sessionRes.rows[0];
+        if (session.creator_id !== req.user.id) {
+            return res.status(403).json({ message: 'Only host can start' });
+        }
+
+        // Fetch shared MCQs for this session
+        const mcqQuery = await query(`
+            SELECT id FROM mcq_pool 
+            WHERE category_id = $1 AND is_approved = TRUE 
+            ORDER BY RANDOM() LIMIT 10
+        `, [categoryId]);
+
+        if (mcqQuery.rows.length === 0) {
+            return res.status(400).json({ message: 'No questions available for this category' });
+        }
+
+        const mcqIds = mcqQuery.rows.map(r => r.id);
+
+        await query(
+            'UPDATE group_sessions SET status = \'active\', category_id = $1, mcq_ids = $2 WHERE id = $3',
+            [categoryId, JSON.stringify(mcqIds), code]
+        );
+
+        res.json({ message: 'Battle started', mcqIds });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
