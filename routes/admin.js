@@ -558,7 +558,10 @@ router.post('/ai-providers/fetch-models', async (req, res) => {
     const { base_url, api_key } = req.body;
     if (!base_url) return res.status(400).json({ error: 'base_url is required', models: [] });
     const axios = require('axios');
-    const cleanUrl = base_url.replace(/\/$/, '');
+    let cleanUrl = base_url.replace(/\/$/, '');
+    if (cleanUrl.endsWith('/models')) {
+        cleanUrl = cleanUrl.slice(0, -7);
+    }
 
     try {
         // Try OpenAI-compatible /models endpoint (OpenAI, OpenRouter, Groq, Together, etc.)

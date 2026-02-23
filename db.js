@@ -189,7 +189,7 @@ const initDB = async () => {
         );`);
 
         await query(`CREATE TABLE IF NOT EXISTS universities (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, state_id INTEGER REFERENCES states(id), logo_url TEXT, is_active BOOLEAN DEFAULT TRUE);`);
-        try { await query(`ALTER TABLE universities ADD CONSTRAINT unique_university_state UNIQUE (state_id, name);`); } catch (e) { }
+        try { await query(`ALTER TABLE universities ADD CONSTRAINT unique_university_state UNIQUE (state_id, name);`); } catch (e) { console.log('Constraint unique_university_state already exists'); }
         try { await query(`ALTER TABLE universities ADD COLUMN IF NOT EXISTS logo_url TEXT;`); } catch (e) { }
 
         await query(`CREATE TABLE IF NOT EXISTS degree_types (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
@@ -199,10 +199,10 @@ const initDB = async () => {
         }
 
         await query(`CREATE TABLE IF NOT EXISTS semesters (id SERIAL PRIMARY KEY, name VARCHAR(50) NOT NULL, university_id INTEGER REFERENCES universities(id), is_active BOOLEAN DEFAULT TRUE);`);
-        try { await query(`ALTER TABLE semesters ADD CONSTRAINT unique_semester_university UNIQUE (university_id, name);`); } catch (e) { }
+        try { await query(`ALTER TABLE semesters ADD CONSTRAINT unique_semester_university UNIQUE (university_id, name);`); } catch (e) { console.log('Constraint unique_semester_university already exists'); }
 
         await query(`CREATE TABLE IF NOT EXISTS papers_stages (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, category_id INTEGER REFERENCES categories(id), is_active BOOLEAN DEFAULT TRUE);`);
-        try { await query(`ALTER TABLE papers_stages ADD CONSTRAINT unique_paper_category UNIQUE (category_id, name);`); } catch (e) { }
+        try { await query(`ALTER TABLE papers_stages ADD CONSTRAINT unique_paper_category UNIQUE (category_id, name);`); } catch (e) { console.log('Constraint unique_paper_category already exists'); }
 
         // Auto-create Classes
         const defaultClasses = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
@@ -282,7 +282,7 @@ const initDB = async () => {
         try {
             await query(`DELETE FROM subscription_plans a USING subscription_plans b WHERE a.id < b.id AND a.name = b.name;`);
             await query(`ALTER TABLE subscription_plans ADD CONSTRAINT unique_plan_name UNIQUE (name);`);
-        } catch (e) { }
+        } catch (e) { console.log('Constraint unique_plan_name already exists'); }
 
         await query(`INSERT INTO subscription_plans (name, duration_hours, price) VALUES ('1 Hour Pass', 1, 10), ('3 Hour Pass', 3, 25) ON CONFLICT (name) DO NOTHING;`);
         await query(`CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), razorpay_order_id VARCHAR(100), razorpay_payment_id VARCHAR(100), amount DECIMAL(10, 2), status VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
