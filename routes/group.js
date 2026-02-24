@@ -165,6 +165,18 @@ router.post('/start', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Only host can start' });
         }
 
+        // PRIME CHECK: Decrement creator's session
+        const creatorRes = await query('SELECT is_premium, sessions_left, role FROM users WHERE id = $1', [req.user.id]);
+        const creator = creatorRes.rows[0];
+
+        if (creator.role !== 'admin') {
+            if (!creator.is_premium || creator.sessions_left <= 0) {
+                return res.status(403).json({ message: 'Prime subscription required or sessions exhausted to start a group battle.', code: 'SESSIONS_EXHAUSTED' });
+            }
+            const newSessions = creator.sessions_left - 1;
+            await query('UPDATE users SET sessions_left = $1, is_premium = $2 WHERE id = $3', [newSessions, newSessions > 0, req.user.id]);
+        }
+
         // 1. Resolve Hierarchy IDs to Topic Name
         let topicParts = [];
 

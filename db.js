@@ -139,8 +139,9 @@ const initDB = async () => {
         try {
             await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';`);
             await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
+            await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_left INTEGER DEFAULT 0;`);
         } catch (e) {
-            console.log('Note: role/is_active column already exists or migration skipped.');
+            console.log('Note: role/is_active/sessions_left column already exists or migration skipped.');
         }
 
         // User Daily Usage
@@ -276,7 +277,21 @@ const initDB = async () => {
         // ----------------------------------------------------------------
 
         // Other System Tables
-        await query(`CREATE TABLE IF NOT EXISTS subscription_plans (id SERIAL PRIMARY KEY, name VARCHAR(50) NOT NULL, duration_hours INTEGER NOT NULL, price DECIMAL(10, 2) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
+        await query(`CREATE TABLE IF NOT EXISTS subscription_plans (
+            id SERIAL PRIMARY KEY, 
+            name VARCHAR(50) NOT NULL, 
+            duration_hours INTEGER NOT NULL, 
+            price DECIMAL(10, 2) NOT NULL, 
+            is_active BOOLEAN DEFAULT TRUE,
+            sessions_limit INTEGER DEFAULT 0,
+            referral_bonus_sessions INTEGER DEFAULT 0
+        );`);
+
+        // Migration to add session columns if table already exists
+        try {
+            await query(`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS sessions_limit INTEGER DEFAULT 0;`);
+            await query(`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS referral_bonus_sessions INTEGER DEFAULT 0;`);
+        } catch (e) { }
 
         // Clean up duplicates and add unique constraint
         try {
@@ -284,7 +299,7 @@ const initDB = async () => {
             await query(`ALTER TABLE subscription_plans ADD CONSTRAINT unique_plan_name UNIQUE (name);`);
         } catch (e) { console.log('Constraint unique_plan_name already exists'); }
 
-        await query(`INSERT INTO subscription_plans (name, duration_hours, price) VALUES ('1 Hour Pass', 1, 10), ('3 Hour Pass', 3, 25) ON CONFLICT (name) DO NOTHING;`);
+        await query(`INSERT INTO subscription_plans (name, duration_hours, price, sessions_limit, referral_bonus_sessions) VALUES ('1 Hour Pass', 1, 10, 5, 1), ('3 Hour Pass', 3, 25, 15, 3) ON CONFLICT (name) DO NOTHING;`);
         await query(`CREATE TABLE IF NOT EXISTS payments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), razorpay_order_id VARCHAR(100), razorpay_payment_id VARCHAR(100), amount DECIMAL(10, 2), status VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await query(`CREATE TABLE IF NOT EXISTS referrals (id SERIAL PRIMARY KEY, referrer_id INTEGER REFERENCES users(id), referred_user_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', reward_given BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
 

@@ -111,6 +111,26 @@ router.get('/practice', verifyToken, subscriptionCheck, async (req, res) => {
             // Override limit from query if free user
             requestedLimit = mcqsPerSession;
         } else {
+            // PRIME USER Logic: Decrement sessions_left
+            await client.query('BEGIN');
+            const userRes = await client.query('SELECT sessions_left FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+            const sessions = userRes.rows[0].sessions_left;
+
+            if (sessions <= 0) {
+                // If sessions are out, they act as free users or we block them?
+                // The user said "sessions sas abr automatic off hoya jabe".
+                await client.query('UPDATE users SET is_premium = FALSE WHERE id = $1', [req.user.id]);
+                await client.query('COMMIT');
+                // Re-trigger free logic or just tell them to buy more? 
+                // Let's redirect to free logic by setting req.isPremium to false and recursing?
+                // Easier: Just handle free logic here or return error.
+                return res.status(403).json({ message: 'Prime sessions exhausted. Please renew.', code: 'SESSIONS_EXHAUSTED' });
+            }
+
+            const newSessions = sessions - 1;
+            await client.query('UPDATE users SET sessions_left = $1, is_premium = $2 WHERE id = $3', [newSessions, newSessions > 0, req.user.id]);
+            await client.query('COMMIT');
+
             requestedLimit = parseInt(limit);
         }
 
@@ -219,6 +239,21 @@ router.post('/generate-practice', verifyToken, subscriptionCheck, async (req, re
             // Override limit from query if free user
             requestedLimit = mcqsPerSession;
         } else {
+            // PRIME USER Logic: Decrement sessions_left
+            await client.query('BEGIN');
+            const userRes = await client.query('SELECT sessions_left FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+            const sessions = userRes.rows[0].sessions_left;
+
+            if (sessions <= 0) {
+                await client.query('UPDATE users SET is_premium = FALSE WHERE id = $1', [req.user.id]);
+                await client.query('COMMIT');
+                return res.status(403).json({ message: 'Prime sessions exhausted. Please renew.', code: 'SESSIONS_EXHAUSTED' });
+            }
+
+            const newSessions = sessions - 1;
+            await client.query('UPDATE users SET sessions_left = $1, is_premium = $2 WHERE id = $3', [newSessions, newSessions > 0, req.user.id]);
+            await client.query('COMMIT');
+
             requestedLimit = parseInt(limit);
         }
 

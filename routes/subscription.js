@@ -103,15 +103,11 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             [req.user.id, razorpay_order_id, razorpay_payment_id, plan.price, 'captured']
         );
 
-        // 3. Activate Subscription for User (Fix: Use Transaction Timestamp or proper date logic)
-        // If user already premium, extend? For now, we overwrite or simple switch.
-        // Simple logic: Premium activates NOW for X hours.
-        const expiry = new Date();
-        expiry.setHours(expiry.getHours() + plan.duration_hours);
-
+        // 3. Activate Subscription for User
+        // Grant sessions from the plan
         await client.query(
-            'UPDATE users SET is_premium = TRUE, premium_expiry = $1 WHERE id = $2',
-            [expiry, req.user.id]
+            'UPDATE users SET is_premium = TRUE, sessions_left = sessions_left + $1 WHERE id = $2',
+            [plan.sessions_limit, req.user.id]
         );
 
         // 4. CHECK REFERRAL REWARD
@@ -128,15 +124,15 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
                 const referrerId = referralCheck.rows[0].referrer_id;
                 const refId = referralCheck.rows[0].id;
 
-                const type = sys.REFERRAL_REWARD_TYPE || 'days';
-                const duration = parseInt(sys.REFERRAL_REWARD_DURATION || 2);
-                const intervalStr = type === 'hours' ? `${duration} hours` : `${duration} days`;
+                // Grant referral bonus sessions to referrer
+                if (plan.referral_bonus_sessions > 0) {
+                    await client.query(`UPDATE users SET sessions_left = sessions_left + $1, is_premium = TRUE WHERE id = $2`, [plan.referral_bonus_sessions, referrerId]);
+                }
 
-                // Give Reward to Referrer
-                await client.query(`UPDATE users SET is_premium = TRUE, premium_expiry = GREATEST(COALESCE(premium_expiry, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '${intervalStr}' WHERE id = $1`, [referrerId]);
-
-                // Give Reward to Referred User (extra bonus on top of their purchase)
-                await client.query(`UPDATE users SET is_premium = TRUE, premium_expiry = GREATEST(COALESCE(premium_expiry, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '${intervalStr}' WHERE id = $1`, [req.user.id]);
+                // Grant referral bonus sessions to referred user as well (optional, using plan's bonus)
+                if (plan.referral_bonus_sessions > 0) {
+                    await client.query(`UPDATE users SET sessions_left = sessions_left + $1 WHERE id = $2`, [plan.referral_bonus_sessions, req.user.id]);
+                }
 
                 // Mark reward given
                 await client.query(`UPDATE referrals SET reward_given = TRUE, status = 'completed' WHERE id = $1`, [refId]);
