@@ -358,5 +358,38 @@ Return ONLY JSON. NO MARKDOWN.`;
     }
 };
 
-module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards };
+const generateSchoolSubjects = async (boardName, className, streamName) => {
+    const prompt = `You are an Indian school curriculum expert.
+For ${boardName}, Class ${className}, Stream: ${streamName || 'General'} (India):
+List ALL official compulsory subjects from the authorized syllabus (NCERT/State Board).
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Mathematics"},{"name":"Physics"},{"name":"English"}]
+Rules:
+- Use exact official subject names
+- Include 5-10 core subjects
+- No placeholders or duplicates
+Return ONLY JSON. NO MARKDOWN.`;
+    return await fetchAIStructure('subjects', prompt);
+};
+
+const generateSchoolChapters = async (subjectName, boardName, className) => {
+    const prompt = `You are an Indian school curriculum expert.
+List ALL official textbook chapters for:
+- Subject: ${subjectName}
+- Board: ${boardName}  
+- Class: ${className}
+- Country: India
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Real Numbers"},{"name":"Polynomials"},{"name":"Triangles"}]
+Rules:
+- Use exact chapter names from the official NCERT or state board textbook
+- Do NOT use placeholders like "Chapter 1"
+- Include all major chapters (8-18 expected)
+Return ONLY JSON. NO MARKDOWN.`;
+    return await fetchAIStructure('chapters', prompt);
+};
+
+module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };
 

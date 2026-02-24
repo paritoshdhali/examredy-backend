@@ -333,14 +333,7 @@ router.post('/semesters', verifyToken, admin, async (req, res) => {
 
 // @route   POST /api/ai-fetch/subjects
 router.post('/subjects', verifyToken, admin, async (req, res) => {
-    const { category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, context_name, force } = req.body;
-
-    // ENSURE NUMERIC IDs
-    const bId = board_id ? Number(board_id) : null;
-    const cId = class_id ? Number(class_id) : null;
-    const catId = category_id ? Number(category_id) : 1;
-    const sId = stream_id ? Number(stream_id) : null;
-
+    const { category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, context_name } = req.body;
     try {
         const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}. Strictly original syllabus subject names only.No placeholders.`);
         const saved = [];
@@ -349,35 +342,31 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
         await query('BEGIN');
         try {
             for (const item of subjects) {
-                const name = (item.name || '').substring(0, 200).trim();
-                if (!name) continue;
-
-                const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name);
+                const name = (item.name || '').substring(0, 200);
+                const isPlaceholder = /^(board|subject|chapter|class)\s+([0-9a-z])$/i.test(name.trim());
                 if (isPlaceholder || name.toLowerCase().includes('placeholder') || name.startsWith('DEBUG_ERROR')) continue;
 
-                // Check if subject already exists (SKIP IF FORCE IS TRUE)
-                if (!force) {
-                    const existing = await query(
-                        `SELECT id FROM subjects 
-                         WHERE board_id = $1 AND class_id = $2
-                         AND (stream_id = $3 OR (stream_id IS NULL AND $3 IS NULL)) 
-                         AND LOWER(name) = LOWER($4)`,
-                        [bId, cId, sId, name]
-                    );
+                // Check if subject already exists
+                const existing = await query(
+                    `SELECT id FROM subjects 
+                     WHERE board_id = $1 AND class_id = $2
+        AND(stream_id = $3 OR(stream_id IS NULL AND $3 IS NULL)) 
+                     AND LOWER(name) = LOWER($4)`,
+                    [board_id, class_id, stream_id, name]
+                );
 
-                    if (existing.rows.length > 0) {
-                        existingCount++;
-                        continue;
-                    }
+                if (existing.rows.length > 0) {
+                    existingCount++;
+                    continue;
                 }
 
                 // Insert new subject
                 const result = await query(
                     `INSERT INTO subjects(
-                        name, category_id, board_id, university_id, class_id, stream_id,
-                        semester_id, degree_type_id, paper_stage_id, is_active
-                    ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE) RETURNING * `,
-                    [name, catId, bId, university_id, cId, sId, semester_id, degree_type_id, paper_stage_id]
+            name, category_id, board_id, university_id, class_id, stream_id,
+            semester_id, degree_type_id, paper_stage_id, is_active
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE) RETURNING * `,
+                    [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]
                 );
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
@@ -388,36 +377,15 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
             await query('ROLLBACK');
             throw err;
         }
-
-        // LOG SUCCESS
-        try {
-            await query(
-                `INSERT INTO ai_fetch_logs (fetch_type, reference_id, created_at) 
-                 VALUES ($1, $2, NOW())`,
-                ['subjects', bId || cId]
-            );
-        } catch (logErr) { console.error('Log Error:', logErr); }
-
         let message = `${saved.length} Subjects fetched and saved.`;
         if (existingCount > 0) message += ` ${existingCount} already existed.`;
         const updSub = await query(`SELECT sub.*, b.name as board_name, c.name as class_name, str.name as stream_name, cat.name as category_name FROM subjects sub LEFT JOIN boards b ON sub.board_id = b.id LEFT JOIN classes c ON sub.class_id = c.id LEFT JOIN streams str ON sub.stream_id = str.id LEFT JOIN categories cat ON sub.category_id = cat.id ORDER BY sub.name ASC`);
-
         if (saved.length === 0 && existingCount === 0) {
             return res.status(422).json({ success: false, message: 'AI returned no valid subjects. Check Neural Hub AI provider settings.' });
         }
         res.json({ success: true, count: saved.length, message, updatedData: updSub.rows });
     } catch (error) {
         console.error('AI Fetch Subjects Error:', error);
-
-        // LOG ERROR
-        try {
-            await query(
-                `INSERT INTO ai_fetch_logs (fetch_type, reference_id, created_at) 
-                 VALUES ($1, $2, NOW())`,
-                ['subjects_error', bId || cId]
-            );
-        } catch (logErr) { }
-
         res.status(500).json({ message: error.message || 'Server error during subject fetch' });
     }
 });
