@@ -34,8 +34,8 @@ router.post('/register', async (req, res) => {
 
         // Create user
         const newUser = await query(
-            'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, role',
-            [username, email, hashedPassword]
+            'INSERT INTO users (username, email, password, is_premium, sessions_left) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role, is_premium, sessions_left',
+            [username, email, hashedPassword, true, 2]
         );
 
         const user = newUser.rows[0];
@@ -153,8 +153,8 @@ router.post('/google', async (req, res) => {
             const username = name || email.split('@')[0];
 
             const newUser = await query(
-                'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, role, is_premium',
-                [username, email, hashedPassword]
+                'INSERT INTO users (username, email, password, is_premium, sessions_left) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role, is_premium, sessions_left',
+                [username, email, hashedPassword, true, 2]
             );
 
             user = newUser.rows[0];
