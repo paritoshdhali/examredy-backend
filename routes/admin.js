@@ -989,13 +989,31 @@ router.get('/legal-pages', async (req, res) => {
 
 router.put('/legal-pages/:id', async (req, res) => {
     const { title, content, is_active } = req.body;
+    const { id } = req.params;
+
+    console.log(`[LEGAL-UPDATE] Attempting to update page ID: ${id}`, { title, is_active });
+
+    if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Invalid page ID' });
+    }
+
     try {
-        await query(
+        const result = await query(
             'UPDATE legal_pages SET title = $1, content = $2, is_active = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
-            [title, content, is_active, req.params.id]
+            [title, content, is_active, parseInt(id)]
         );
+
+        console.log(`[LEGAL-UPDATE] Update result for ID ${id}:`, result.rowCount, 'rows affected');
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Page not found in database' });
+        }
+
         res.json({ success: true, message: 'Legal page updated' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error(`[LEGAL-UPDATE-ERROR] ID ${id}:`, e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 module.exports = router;
