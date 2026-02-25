@@ -315,6 +315,14 @@ router.get('/degree-types', async (req, res) => {
     const result = await query('SELECT * FROM degree_types ORDER BY name ASC');
     res.json(result.rows);
 });
+router.post('/degree-types', async (req, res) => {
+    await query('INSERT INTO degree_types (name) VALUES ($1)', [req.body.name]);
+    res.json({ message: 'Course/Degree Type added' });
+});
+router.put('/degree-types/:id', async (req, res) => {
+    await query('UPDATE degree_types SET name=$1, is_active=$2 WHERE id=$3', [req.body.name, req.body.is_active, req.params.id]);
+    res.json({ message: 'Course/Degree Type updated' });
+});
 
 router.get('/semesters', async (req, res) => {
     const result = await query('SELECT * FROM semesters ORDER BY id ASC');

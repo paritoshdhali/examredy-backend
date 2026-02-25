@@ -194,7 +194,7 @@ const initDB = async () => {
         try { await query(`ALTER TABLE universities ADD COLUMN IF NOT EXISTS logo_url TEXT;`); } catch (e) { }
 
         await query(`CREATE TABLE IF NOT EXISTS degree_types (id SERIAL PRIMARY KEY, name VARCHAR(500) NOT NULL, is_active BOOLEAN DEFAULT TRUE);`);
-        const defaultDegrees = ['Pass', 'Honours'];
+        const defaultDegrees = ['B.A. Honours', 'B.Sc. Honours', 'B.Com. Honours', 'B.A. General/Pass', 'B.Sc. General/Pass', 'B.Com. General/Pass', 'B.E. / B.Tech', 'M.A.', 'M.Sc.', 'M.Com.'];
         for (const deg of defaultDegrees) {
             await query(`INSERT INTO degree_types (name) SELECT $1::varchar WHERE NOT EXISTS (SELECT 1 FROM degree_types WHERE name = $1::varchar);`, [deg]);
         }
