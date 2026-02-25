@@ -520,4 +520,13 @@ router.post('/fetch-out-degree-types', rateLimitMiddleware, async (req, res) => 
     }
 });
 
+// @route   GET /api/structure/legal/:slug
+router.get('/legal/:slug', async (req, res) => {
+    try {
+        const result = await query('SELECT title, content, updated_at FROM legal_pages WHERE slug = $1 AND is_active = TRUE', [req.params.slug]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Page not found' });
+        res.json(result.rows[0]);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;

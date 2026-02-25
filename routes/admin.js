@@ -979,4 +979,23 @@ router.post('/ai-fetch/chapters', async (req, res) => {
     }
 });
 
+// --- 13. LEGAL PAGES MANAGEMENT ---
+router.get('/legal-pages', async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM legal_pages ORDER BY id ASC');
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/legal-pages/:id', async (req, res) => {
+    const { title, content, is_active } = req.body;
+    try {
+        await query(
+            'UPDATE legal_pages SET title = $1, content = $2, is_active = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+            [title, content, is_active, req.params.id]
+        );
+        res.json({ success: true, message: 'Legal page updated' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
