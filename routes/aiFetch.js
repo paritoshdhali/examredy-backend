@@ -60,7 +60,8 @@ router.post('/boards', verifyToken, admin, async (req, res) => {
         // Strictly fetch school education boards only (Class 1-12 level)
         const boards = await fetchAIStructure(
             'School Education Boards',
-            `State of ${state_name}, India. List ONLY boards that govern school education (Class 1 to Class 12), such as state secondary boards, CBSE, ICSE/CISCE, NIOS. DO NOT include university boards, entrance exam boards (JEE/NEET/WBJEE), council of higher education, technical boards, or any board not related to school-level (Class 1-12) education.`
+            `State of ${state_name}, India. List ONLY boards that govern school education (Class 1 to Class 12), such as state secondary boards, CBSE, ICSE/CISCE, NIOS. DO NOT include university boards, entrance exam boards (JEE/NEET/WBJEE), council of higher education, technical boards, or any board not related to school-level (Class 1-12) education.`,
+            30
         );
         const saved = [];
         let existingCount = 0;
@@ -208,7 +209,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
 router.post('/papers', verifyToken, admin, async (req, res) => {
     const { category_id, category_name } = req.body;
     try {
-        const papers = await fetchAIStructure('Papers/Stages', `Exam Category: ${category_name}. Strictly original names.`);
+        const papers = await fetchAIStructure('Papers/Stages', `Exam Category: ${category_name}. Strictly original names.`, 30);
         const saved = [];
         let existingCount = 0;
         await query('BEGIN');
@@ -248,7 +249,8 @@ router.post('/streams', verifyToken, admin, async (req, res) => {
         // Ask AI which streams are relevant for this board+class
         const aiStreams = await fetchAIStructure(
             'Streams',
-            `Board: "${board_name}", ${class_name} (India).List ONLY the academic streams / branches offered at this class level by this board.Typical values: Science, Commerce, Arts / Humanities, Vocational.Return only what this board actually offers.`
+            `Board: "${board_name}", ${class_name} (India).List ONLY the academic streams / branches offered at this class level by this board.Typical values: Science, Commerce, Arts / Humanities, Vocational.Return only what this board actually offers.`,
+            20
         );
 
         // Upsert streams into DB (or match existing)

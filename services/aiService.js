@@ -337,11 +337,11 @@ Rules:
 - Include only REAL, officially recognized boards
 - Include both central boards (CBSE, ICSE, NIOS) and state board(s)  
 - Do NOT include placeholders, duplicates, or made-up names
-- Return 3 to 8 real boards maximum
+- Return 3 to 15 real boards maximum
 Return ONLY JSON. NO MARKDOWN.`;
 
     try {
-        const result = await fetchAIStructure('school boards', prompt);
+        const result = await fetchAIStructure('school boards', prompt, 30);
         // Validate: filter out anything that looks like an error or placeholder
         const valid = result.filter(b =>
             b.name &&
@@ -367,10 +367,10 @@ Return ONLY a valid JSON array of objects with a "name" key.
 Example: [{"name":"Mathematics"},{"name":"Physics"},{"name":"English"}]
 Rules:
 - Use exact official subject names
-- Include 5-10 core subjects
+- Include 5-20 core subjects
 - No placeholders or duplicates
 Return ONLY JSON. NO MARKDOWN.`;
-    return await fetchAIStructure('subjects', prompt);
+    return await fetchAIStructure('subjects', prompt, 30);
 };
 
 const generateSchoolChapters = async (subjectName, boardName, className) => {
@@ -386,9 +386,9 @@ Example: [{"name":"Real Numbers"},{"name":"Polynomials"},{"name":"Triangles"}]
 Rules:
 - Use exact chapter names from the official NCERT or state board textbook
 - Do NOT use placeholders like "Chapter 1"
-- Include all major chapters (8-18 expected)
+- Include all major chapters (8-30 expected)
 Return ONLY JSON. NO MARKDOWN.`;
-    return await fetchAIStructure('chapters', prompt);
+    return await fetchAIStructure('chapters', prompt, 30);
 };
 
 module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };
