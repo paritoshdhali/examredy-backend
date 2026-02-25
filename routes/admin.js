@@ -249,6 +249,26 @@ router.get('/classes/:board_id', verifyToken, admin, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/classes', async (req, res) => {
+    try {
+        const { name, board_id } = req.body;
+        // 1. Ensure class exists in classes table
+        let classId;
+        const existing = await query('SELECT id FROM classes WHERE LOWER(name) = LOWER($1)', [name]);
+        if (existing.rows[0]) {
+            classId = existing.rows[0].id;
+        } else {
+            const newClass = await query('INSERT INTO classes (name, is_active) VALUES ($1, TRUE) RETURNING id', [name]);
+            classId = newClass.rows[0].id;
+        }
+        // 2. Link to board in board_classes
+        if (board_id) {
+            await query('INSERT INTO board_classes (board_id, class_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT (board_id, class_id) DO UPDATE SET is_active = TRUE', [board_id, classId]);
+        }
+        res.json({ success: true, message: 'Class added and linked to board', class_id: classId });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Delete ALL boards for a specific state (used for AI re-sync)
 router.delete('/boards/state/:state_id', async (req, res) => {
     try {
@@ -907,8 +927,8 @@ router.post('/ai-fetch/subjects', async (req, res) => {
         const savedSubjects = [];
         for (const sub of subjects) {
             const result = await query(
-                `INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, is_approved)
-                 SELECT $1, 1, $2, $3, $4, TRUE
+                `INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, is_approved, is_active)
+                 SELECT $1, 1, $2, $3, $4, TRUE, TRUE
                  WHERE NOT EXISTS (SELECT 1 FROM subjects WHERE board_id=$2 AND class_id=$3 AND LOWER(name)=LOWER($1))
                  RETURNING *`,
                 [sub.name, board_id, class_id, stream_id]

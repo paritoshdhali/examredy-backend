@@ -335,9 +335,12 @@ router.post('/semesters', verifyToken, admin, async (req, res) => {
 router.post('/subjects', verifyToken, admin, async (req, res) => {
     const { category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id, context_name } = req.body;
     try {
-        const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}. Strictly original syllabus subject names only.No placeholders.`);
+        const subjects = await fetchAIStructure('Subjects', `Context: ${context_name}. Strictly original syllabus subject names only. No placeholders.`);
         const saved = [];
         let existingCount = 0;
+
+        // Default to category_id 1 (School) if board_id and class_id are provided but category_id is missing
+        const finalCategoryId = category_id || (board_id && class_id ? 1 : null);
 
         await query('BEGIN');
         try {
@@ -364,9 +367,9 @@ router.post('/subjects', verifyToken, admin, async (req, res) => {
                 const result = await query(
                     `INSERT INTO subjects(
             name, category_id, board_id, university_id, class_id, stream_id,
-            semester_id, degree_type_id, paper_stage_id, is_active
-        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE) RETURNING * `,
-                    [name, category_id, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]
+            semester_id, degree_type_id, paper_stage_id, is_active, is_approved
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE) RETURNING * `,
+                    [name, finalCategoryId, board_id, university_id, class_id, stream_id, semester_id, degree_type_id, paper_stage_id]
                 );
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
