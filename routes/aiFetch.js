@@ -178,7 +178,7 @@ router.post('/universities', verifyToken, admin, async (req, res) => {
         try {
             for (const item of universities) {
                 const name = (item.name || '').substring(0, 200);
-                if (name.toLowerCase().includes('university ') || name.toLowerCase().includes('placeholder') || name.startsWith('DEBUG_ERROR')) continue;
+                if (name.toLowerCase().includes('placeholder') || name.startsWith('DEBUG_ERROR')) continue;
                 const result = await query('INSERT INTO universities (name, state_id, is_active) VALUES ($1, $2, $3) ON CONFLICT (state_id, name) DO NOTHING RETURNING *', [name, state_id, false]);
                 if (result.rows[0]) {
                     saved.push(result.rows[0]);
