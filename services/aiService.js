@@ -391,5 +391,41 @@ Return ONLY JSON. NO MARKDOWN.`;
     return await fetchAIStructure('chapters', prompt, 30);
 };
 
-module.exports = { generateMCQInitial, fetchAIStructure, generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters };
+const generateSchoolClasses = async (boardName) => {
+    const prompt = `You are an Indian school curriculum expert.
+For ${boardName} (India):
+List ALL official classes governed by this specific board.
+For example, CBSE covers Class 1 to Class 12. Some state boards only cover Class 9 to Class 12. Some might only be Class 11 and 12.
 
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Class 1"},{"name":"Class 2"}] up to {"name":"Class 12"} (only what is officially offered).
+Rules:
+- Format strictly as "Class X" where X is the number (1 to 12).
+- Return ONLY the exact sequence of classes this board officially offers.
+- NO extra text. NO markdown. ONLY JSON array.`;
+    return await fetchAIStructure('classes', prompt, 12);
+};
+
+const generateSchoolStreams = async (boardName, className) => {
+    const prompt = `You are an Indian school curriculum expert.
+For ${boardName}, ${className} (India):
+List ALL the official academic streams or branches offered at this class level by this specific board.
+
+Return ONLY a valid JSON array of objects with a "name" key.
+Example: [{"name":"Science"},{"name":"Commerce"},{"name":"Arts/Humanities"},{"name":"Vocational"}]
+Rules:
+- Usually only Class 11 and 12 have streams in India. If the class doesn't have streams (like Class 10), return an empty array [].
+- Return ONLY what this board ACTUALLY offers.
+- NO extra text. NO markdown. ONLY JSON array.`;
+    return await fetchAIStructure('streams', prompt, 10);
+};
+
+module.exports = {
+    generateMCQInitial,
+    fetchAIStructure,
+    generateSchoolBoards,
+    generateSchoolClasses,
+    generateSchoolStreams,
+    generateSchoolSubjects,
+    generateSchoolChapters
+};

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db');
-const { generateSchoolBoards, generateSchoolSubjects, generateSchoolChapters } = require('../services/aiService');
+const { generateSchoolBoards, generateSchoolClasses, generateSchoolStreams, generateSchoolSubjects, generateSchoolChapters } = require('../services/aiService');
 
 // Simple Memory Rate Limiter for public AI fetches
 const rateLimitMap = new Map();
@@ -230,6 +230,87 @@ router.post('/fetch-out-chapters', rateLimitMiddleware, async (req, res) => {
     } catch (err) {
         console.error('Fetch Out Chapters Error:', err);
         res.status(500).json({ error: 'Failed to fetch chapters' });
+    } finally {
+        activeFetches.delete(key);
+    }
+});
+
+// @route   POST /api/structure/fetch-out-classes
+router.post('/fetch-out-classes', rateLimitMiddleware, async (req, res) => {
+    const { board_id, board_name } = req.body;
+    if (!board_id || !board_name) return res.status(400).json({ error: 'Missing required info' });
+
+    const key = `classes_${board_id}`;
+    if (activeFetches.has(key)) return res.status(429).json({ message: 'Fetch already in progress. Please wait.' });
+    activeFetches.add(key);
+
+    try {
+        const generatedClasses = await generateSchoolClasses(board_name);
+        const saved = [];
+
+        for (const item of generatedClasses) {
+            const name = (item.name || '').substring(0, 50).trim();
+            if (!name) continue;
+
+            // 1. Find or create the class globally
+            const classRes = await query(
+                `INSERT INTO classes (name, class_id, is_active) VALUES ($1, $1, TRUE) 
+                 ON CONFLICT (name) DO UPDATE SET is_active = TRUE RETURNING id, name`,
+                [name]
+            );
+            const class_ref_id = classRes.rows[0].id;
+
+            // 2. Map the class to this specific board
+            await query(
+                `INSERT INTO board_classes (board_id, class_id, is_active) VALUES ($1, $2, TRUE)
+                 ON CONFLICT (board_id, class_id) DO UPDATE SET is_active = TRUE`,
+                [board_id, class_ref_id]
+            );
+
+            saved.push({ id: class_ref_id, name });
+        }
+        res.json({ success: true, count: saved.length, data: saved });
+    } catch (err) {
+        console.error('Fetch Out Classes Error:', err);
+        res.status(500).json({ error: 'Failed to fetch classes' });
+    } finally {
+        activeFetches.delete(key);
+    }
+});
+
+// @route   POST /api/structure/fetch-out-streams
+router.post('/fetch-out-streams', rateLimitMiddleware, async (req, res) => {
+    const { board_name, class_name } = req.body;
+    if (!board_name || !class_name) return res.status(400).json({ error: 'Missing required info' });
+
+    const key = `streams_${board_name}_${class_name}`;
+    if (activeFetches.has(key)) return res.status(429).json({ message: 'Fetch already in progress. Please wait.' });
+    activeFetches.add(key);
+
+    try {
+        const streams = await generateSchoolStreams(board_name, class_name);
+        const saved = [];
+
+        for (const item of streams) {
+            const name = (item.name || '').substring(0, 100).trim();
+            if (!name) continue;
+
+            const existing = await query(`SELECT id FROM streams WHERE LOWER(name) = LOWER($1)`, [name]);
+            if (existing.rows.length > 0) {
+                await query('UPDATE streams SET is_active = TRUE WHERE id = $1', [existing.rows[0].id]);
+                saved.push({ id: existing.rows[0].id, name });
+            } else {
+                const result = await query(
+                    `INSERT INTO streams (name, is_active) VALUES ($1, TRUE) ON CONFLICT (name) DO UPDATE SET is_active = TRUE RETURNING id, name`,
+                    [name]
+                );
+                if (result.rows[0]) saved.push(result.rows[0]);
+            }
+        }
+        res.json({ success: true, count: saved.length, data: saved });
+    } catch (err) {
+        console.error('Fetch Out Streams Error:', err);
+        res.status(500).json({ error: 'Failed to fetch streams' });
     } finally {
         activeFetches.delete(key);
     }
