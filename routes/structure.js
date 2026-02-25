@@ -298,7 +298,7 @@ router.post('/fetch-out-classes', rateLimitMiddleware, async (req, res) => {
 
             // 1. Find or create the class globally
             const classRes = await query(
-                `INSERT INTO classes (name, class_id, is_active) VALUES ($1, $1, TRUE) 
+                `INSERT INTO classes (name, is_active) VALUES ($1, TRUE) 
                  ON CONFLICT (name) DO UPDATE SET is_active = TRUE RETURNING id, name`,
                 [name]
             );
