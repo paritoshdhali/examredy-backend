@@ -152,7 +152,7 @@ router.post('/fetch-out-boards', rateLimitMiddleware, async (req, res) => {
 
 // @route   POST /api/structure/fetch-out-subjects
 router.post('/fetch-out-subjects', rateLimitMiddleware, async (req, res) => {
-    const { board_id, board_name, class_id, class_name, stream_id, stream_name, university_id, university_name, semester_id, semester_name, paper_stage_id, paper_stage_name, category_id, category_name } = req.body;
+    const { board_id, board_name, class_id, class_name, stream_id, stream_name, university_id, university_name, degree_type_id, degree_type_name, paper_stage_id, paper_stage_name, category_id, category_name } = req.body;
 
     let flowType = '';
     let context_name = '';
@@ -164,10 +164,10 @@ router.post('/fetch-out-subjects', rateLimitMiddleware, async (req, res) => {
         context_name = `Board: ${board_name}, Class: ${class_name}` + (stream_name ? `, Stream: ${stream_name}` : '');
         cacheKey = `subjects_school_${board_id}_${class_id}_${stream_id || 'all'}`;
         finalCategoryId = category_id || 1;
-    } else if (university_id && semester_id) {
+    } else if (university_id && degree_type_id) {
         flowType = 'university';
-        context_name = `University: ${university_name}, Semester/Year: ${semester_name}`;
-        cacheKey = `subjects_uni_${university_id}_${semester_id}`;
+        context_name = `University: ${university_name}, Degree: ${degree_type_name}`;
+        cacheKey = `subjects_uni_${university_id}_${degree_type_id}`;
         finalCategoryId = category_id || 2;
     } else if (paper_stage_id && category_id) {
         flowType = 'competitive';
@@ -200,10 +200,10 @@ router.post('/fetch-out-subjects', rateLimitMiddleware, async (req, res) => {
                  AND (class_id = $2 OR (class_id IS NULL AND $2 IS NULL))
                  AND (stream_id = $3 OR (stream_id IS NULL AND $3 IS NULL)) 
                  AND (university_id = $4 OR (university_id IS NULL AND $4 IS NULL))
-                 AND (semester_id = $5 OR (semester_id IS NULL AND $5 IS NULL))
+                 AND (degree_type_id = $5 OR (degree_type_id IS NULL AND $5 IS NULL))
                  AND (paper_stage_id = $6 OR (paper_stage_id IS NULL AND $6 IS NULL))
                  AND LOWER(name) = LOWER($7)`,
-                [board_id || null, class_id || null, stream_id || null, university_id || null, semester_id || null, paper_stage_id || null, name]
+                [board_id || null, class_id || null, stream_id || null, university_id || null, degree_type_id || null, paper_stage_id || null, name]
             );
 
             if (existing.rows.length > 0) {
@@ -211,9 +211,9 @@ router.post('/fetch-out-subjects', rateLimitMiddleware, async (req, res) => {
                 saved.push({ id: existing.rows[0].id, name });
             } else {
                 const result = await query(
-                    `INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, university_id, semester_id, paper_stage_id, is_active, is_approved) 
+                    `INSERT INTO subjects (name, category_id, board_id, class_id, stream_id, university_id, degree_type_id, paper_stage_id, is_active, is_approved) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, TRUE) RETURNING id, name`,
-                    [name, finalCategoryId, board_id || null, class_id || null, stream_id || null, university_id || null, semester_id || null, paper_stage_id || null]
+                    [name, finalCategoryId, board_id || null, class_id || null, stream_id || null, university_id || null, degree_type_id || null, paper_stage_id || null]
                 );
                 if (result.rows[0]) saved.push(result.rows[0]);
             }
@@ -234,6 +234,7 @@ router.post('/fetch-out-chapters', rateLimitMiddleware, async (req, res) => {
 
     let context_name = '';
     if (board_name && class_name) context_name = `Board: ${board_name}, Class: ${class_name}`;
+    else if (university_name && degree_type_name) context_name = `University: ${university_name}, Degree: ${degree_type_name}`;
     else if (university_name && semester_name) context_name = `University: ${university_name}, Semester: ${semester_name}`;
     else if (paper_stage_name) context_name = `Exam: ${category_name}, Stage: ${paper_stage_name}`;
 
