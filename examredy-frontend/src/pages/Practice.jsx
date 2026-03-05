@@ -187,7 +187,20 @@ const Practice = () => {
 
 
     // Helper functions for School UI logic
-    const classNum = selectedClass ? parseInt(classes.find(c => c.id == selectedClass)?.name.replace(/\D/g, '')) : 0;
+    const getClassNumber = (className = '') => {
+        if (!className) return 0;
+        const name = className.trim().toUpperCase();
+        // Roman numeral mapping for class 11 & 12
+        if (name.includes('XII') || name.includes('12') || name.includes('TWELVE')) return 12;
+        if (name.includes('XI') || name.includes('11') || name.includes('ELEVEN')) return 11;
+        // Fallback: extract any digit sequence
+        const digits = name.replace(/\D/g, '');
+        return digits ? parseInt(digits) : 0;
+    };
+    const selectedClassName = selectedClass
+        ? (classes.find(c => c.id == selectedClass)?.name || '')
+        : '';
+    const classNum = getClassNumber(selectedClassName);
     const needsStream = classNum >= 11;
 
 
