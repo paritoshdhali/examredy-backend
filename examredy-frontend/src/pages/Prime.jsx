@@ -61,34 +61,17 @@ const Prime = () => {
 
             const callbackUrl = `https://examredy-backend1-production.up.railway.app/api/subscription/payment-callback?planId=${planId}`;
 
-            // 2. Flutter WebView: Use HTML Form POST (no popup/modal, navigates current page)
+            // 2. Flutter WebView: Navigate directly to backend payment page
+            // Backend creates order + renders auto-submit form to Razorpay
+            // No JS SDK, no popup - pure server-side redirect
             if (window.__isFlutterWebView) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = 'https://api.razorpay.com/v1/checkout/embedded';
-
-                const fields = {
-                    key_id: key_id,
-                    order_id: order.id,
-                    name: 'ExamRedy',
-                    description: 'Premium Subscription',
-                    'prefill[name]': user.username || '',
-                    'prefill[email]': user.email || '',
-                    // planId in callback_url as query param so backend can read it from req.query
-                    callback_url: `https://examredy-backend1-production.up.railway.app/api/subscription/payment-callback?planId=${planId}`,
-                    cancel_url: `https://examredy-frontend.vercel.app/prime?payment=failed&reason=cancelled`,
-                };
-
-                Object.entries(fields).forEach(([name, value]) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = name;
-                    input.value = value;
-                    form.appendChild(input);
-                });
-
-                document.body.appendChild(form);
-                form.submit(); // WebView navigates to Razorpay full page
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('Please login again to continue payment.');
+                    return;
+                }
+                const payUrl = `https://examredy-backend1-production.up.railway.app/api/subscription/initiate-payment?planId=${planId}&token=${encodeURIComponent(token)}`;
+                window.location.href = payUrl;
                 return;
             }
 
