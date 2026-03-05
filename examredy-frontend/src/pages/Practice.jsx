@@ -233,6 +233,10 @@ const Practice = () => {
     };
 
     const handleSessionComplete = (data) => {
+        // Notify Flutter APK that a session has ended (for interstitial ad counting)
+        if (window.FlutterAdChannel) {
+            window.FlutterAdChannel.postMessage('sessionComplete');
+        }
         setMode(null);
         setQuestions([]);
     };

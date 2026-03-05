@@ -50,46 +50,72 @@ const Prime = () => {
     };
 
     const handleBuy = async (planId, price) => {
-        const res = await loadRazorpay();
-
-        if (!res) {
-            alert('Razorpay SDK failed to load. Are you online?');
-            return;
-        }
-
         try {
             // 0. Get Public Config (Key ID)
             const configRes = await api.get('/subscription/config');
             const { key_id } = configRes.data;
 
-            // 1. Create Order
+            // 1. Create Order on backend
             const orderRes = await api.post('/subscription/create-order', { planId });
             const order = orderRes.data;
 
-            // 2. Detect Flutter WebView → use redirect mode (popup doesn't work in WebView)
-            const isFlutterWebView = !!(window.__isFlutterWebView);
+            const callbackUrl = `https://examredy-backend1-production.up.railway.app/api/subscription/payment-callback?planId=${planId}`;
+
+            // 2. Flutter WebView: Use HTML Form POST (no popup/modal, navigates current page)
+            if (window.__isFlutterWebView) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'https://api.razorpay.com/v1/checkout/embedded';
+
+                const fields = {
+                    key_id: key_id,
+                    order_id: order.id,
+                    name: 'ExamRedy',
+                    description: 'Premium Subscription',
+                    'prefill[name]': user.username || '',
+                    'prefill[email]': user.email || '',
+                    callback_url: callbackUrl,
+                    cancel_url: `${window.location.origin}/prime?payment=failed&reason=cancelled`,
+                };
+
+                Object.entries(fields).forEach(([name, value]) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit(); // WebView navigates to Razorpay full page
+                return;
+            }
+
+            // 3. Normal Browser: Use Razorpay JS SDK popup
+            const sdkLoaded = await new Promise((resolve) => {
+                if (window.Razorpay) return resolve(true);
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.body.appendChild(script);
+            });
+
+            if (!sdkLoaded) {
+                alert('Razorpay SDK failed to load. Are you online?');
+                return;
+            }
 
             const options = {
                 key: key_id,
                 amount: order.amount,
                 currency: order.currency,
-                name: "ExamRedy",
-                description: "Premium Subscription",
+                name: 'ExamRedy',
+                description: 'Premium Subscription',
                 order_id: order.id,
-                prefill: {
-                    name: user.username,
-                    email: user.email,
-                },
-                theme: { color: "#2563EB" }
-            };
-
-            if (isFlutterWebView) {
-                // Redirect mode: Razorpay redirects to callback_url after payment
-                options.redirect = true;
-                options.callback_url = `${import.meta.env.VITE_API_URL || 'https://examredy-backend1-production.up.railway.app'}/api/subscription/payment-callback?planId=${planId}`;
-            } else {
-                // Browser mode: normal popup handler
-                options.handler = async function (response) {
+                prefill: { name: user.username, email: user.email },
+                theme: { color: '#2563EB' },
+                handler: async function (response) {
                     try {
                         await api.post('/subscription/verify-payment', {
                             razorpay_order_id: response.razorpay_order_id,
@@ -102,14 +128,12 @@ const Prime = () => {
                     } catch (err) {
                         alert('Payment verification failed');
                     }
-                };
-            }
-
-            const paymentObject = new window.Razorpay(options);
-            paymentObject.open();
+                },
+            };
+            new window.Razorpay(options).open();
 
         } catch (err) {
-            console.error("Payment initiation failed", err);
+            console.error('Payment initiation failed', err);
             const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Unknown error';
             alert(`Failed to start payment: ${msg}`);
         }
