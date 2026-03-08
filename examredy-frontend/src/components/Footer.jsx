@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Mail, MapPin, Twitter, Github, Linkedin, MessageCircle } from 'lucide-react';
+import { ShieldCheck, Mail, Phone, Twitter, Github, Linkedin, MessageCircle } from 'lucide-react';
 import api from '../services/api';
 
 const Footer = () => {
@@ -101,7 +101,7 @@ const Footer = () => {
                             </div>
                             <div className="flex items-center gap-3 text-gray-500 text-sm font-bold">
                                 <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-                                    <MapPin size={14} />
+                                    <Phone size={14} />
                                 </div>
                                 {(settings?.WHATSAPP_NUMBER && settings.WHATSAPP_NUMBER.trim() !== '' && settings.WHATSAPP_NUMBER !== 'undefined') ? settings.WHATSAPP_NUMBER : '+91 XXXX XXXX'}
                             </div>
