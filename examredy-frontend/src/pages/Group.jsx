@@ -361,6 +361,12 @@ const Group = () => {
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Waiting Room</h2>
                     <p className="text-gray-500 mb-8">Share code with friends to join.</p>
 
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-6 font-bold border-2 border-red-100">
+                            ⚠️ {error}
+                        </div>
+                    )}
+
                     <div className="bg-gray-100 rounded-2xl p-6 mb-8 border-2 border-dashed border-gray-300">
                         <p className="text-xs text-gray-400 uppercase font-bold tracking-widest mb-2">Session Code</p>
                         <div className="text-5xl font-mono font-bold text-blue-600 tracking-wider select-all">
