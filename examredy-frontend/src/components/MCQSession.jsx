@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 
-const MCQSession = ({ questions, onComplete, mode = 'practice', sessionId = null, sessionInfo = null }) => {
+const MCQSession = ({ questions, onComplete, onFetchNext, mode = 'practice', sessionId = null, sessionInfo = null }) => {
+    const [isLoadingNext, setIsLoadingNext] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState(null);
     const [isChecked, setIsChecked] = useState(false);
@@ -43,12 +44,22 @@ const MCQSession = ({ questions, onComplete, mode = 'practice', sessionId = null
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         setSelectedOption(null);
         setIsChecked(false);
         setResult(null);
 
-        if (currentIndex < questions.length - 1) {
+        // If we are at the last available question but not at the total limit (e.g. 10)
+        if (currentIndex === questions.length - 1 && questions.length < 10 && mode === 'group') {
+            if (onFetchNext) {
+                setIsLoadingNext(true);
+                const success = await onFetchNext();
+                setIsLoadingNext(false);
+                if (success) {
+                    setCurrentIndex(currentIndex + 1);
+                }
+            }
+        } else if (currentIndex < questions.length - 1) {
             setCurrentIndex(currentIndex + 1);
         } else {
             onComplete({ score, total: questions.length });
@@ -137,9 +148,20 @@ const MCQSession = ({ questions, onComplete, mode = 'practice', sessionId = null
                     {isChecked && (
                         <button
                             onClick={handleNext}
-                            className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg transition"
+                            disabled={isLoadingNext}
+                            className={`${isLoadingNext ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'} text-white px-8 py-3 rounded-xl font-bold shadow-lg transition flex items-center`}
                         >
-                            <>{currentIndex === questions.length - 1 ? 'Finish' : 'Next Question'}</>
+                            {isLoadingNext ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Generating...
+                                </>
+                            ) : (
+                                <>{currentIndex === questions.length - 1 && questions.length === 10 ? 'Finish' : 'Next Question'}</>
+                            )}
                         </button>
                     )}
                 </div>

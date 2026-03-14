@@ -124,10 +124,10 @@ const Group = () => {
     const classNum = selectedClass && foundClass ? parseInt(foundClass.name.replace(/\D/g, '')) : 0;
     const needsStream = classNum >= 11;
 
-    // Polling for lobby status
+    // Polling for lobby and battle synchronization
     useEffect(() => {
         let interval;
-        if (step === 'lobby' && sessionCode) {
+        if ((step === 'lobby' || step === 'active') && sessionCode) {
             interval = setInterval(async () => {
                 try {
                     const res = await api.get(`/group/${sessionCode}/status`);
@@ -135,8 +135,12 @@ const Group = () => {
                     setIsHost(res.data.isHost);
 
                     if (res.data.status === 'active' && res.data.questions.length > 0) {
-                        setBattleQuestions(res.data.questions);
-                        setStep('active');
+                        // For synchronization: only update if the count has changed
+                        if (res.data.questions.length !== battleQuestions.length) {
+                            console.log("[GroupSync] New question detected. Updating local list.");
+                            setBattleQuestions(res.data.questions);
+                        }
+                        if (step === 'lobby') setStep('active');
                     }
                 } catch (err) {
                     console.error("Polling error", err);
@@ -144,7 +148,7 @@ const Group = () => {
             }, 3000); // Poll every 3 seconds
         }
         return () => clearInterval(interval);
-    }, [step, sessionCode]);
+    }, [step, sessionCode, battleQuestions.length]);
 
     // Create a new session
     const handleCreate = async () => {
@@ -320,6 +324,17 @@ const Group = () => {
         }
     };
 
+    const fetchNextQuestion = async () => {
+        try {
+            const res = await api.post(`/group/${sessionCode}/next`, { language: selectedLanguage });
+            setBattleQuestions(res.data.questions);
+            return true;
+        } catch (err) {
+            console.error("Failed to fetch next question", err);
+            return false;
+        }
+    };
+
     if (step === 'active') {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
@@ -327,6 +342,7 @@ const Group = () => {
                     questions={battleQuestions}
                     mode="group"
                     sessionId={sessionCode}
+                    onFetchNext={fetchNextQuestion}
                     onComplete={() => setStep('results')}
                 />
             </div>
