@@ -654,7 +654,7 @@ const Practice = () => {
 
                             <button
                                 onClick={startSoloPractice}
-                                disabled={!selectedChapter || loading}
+                                disabled={!selectedSubject || loading}
                                 className="w-full bg-primary text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-1 block text-center mt-6 disabled:opacity-50 disabled:hover:translate-y-0 relative overflow-hidden"
                             >
                                 {loading ? (

@@ -310,8 +310,12 @@ const Group = () => {
                 language: selectedLanguage
             });
             console.log("[GroupBattle] Backend responded success. Questions count:", res.data.questions?.length);
-            setBattleQuestions(res.data.questions);
-            setStep('active');
+            if (res.data.questions && res.data.questions.length > 0) {
+                setBattleQuestions(res.data.questions);
+                setStep('active');
+            } else {
+                setError('No questions were generated for this selection. Try a different category or subject.');
+            }
         } catch (err) {
             console.error("[GroupBattle] Start failed:", err.response?.status, err.response?.data || err.message);
             if (err.response?.data?.code === 'SESSIONS_EXHAUSTED') {

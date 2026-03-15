@@ -197,7 +197,21 @@ router.post('/start', verifyToken, async (req, res) => {
 
         const results = await Promise.all(namePromises);
         let topicParts = results.map(r => r?.rows?.[0]?.name).filter(Boolean);
-        const topic = topicParts.length > 0 ? topicParts.join(' ') : 'General Knowledge';
+        
+        // Priority construction: Subject + Chapter + Category
+        let topic = 'General Knowledge';
+        if (topicParts.length > 0) {
+            // If we have many parts, let's pick the most specific ones for better AI generation
+            // Usually Subject (idx 7) and Chapter (idx 8) are the most important
+            const subjectName = results[7]?.rows?.[0]?.name;
+            const chapterName = results[8]?.rows?.[0]?.name;
+            const catName = results[0]?.rows?.[0]?.name;
+            
+            if (chapterName && subjectName) topic = `${subjectName}: ${chapterName}`;
+            else if (subjectName) topic = subjectName;
+            else if (catName) topic = catName;
+            else topic = topicParts.join(' ');
+        }
 
         // 2. Generate 1st MCQ (Fast Start)
         console.log(`[GroupBattle] START: Generating 1st MCQ for: ${topic}`);
