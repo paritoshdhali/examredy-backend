@@ -86,6 +86,7 @@ router.get('/:code/status', verifyToken, async (req, res) => {
         res.json({
             status: session.status,
             categoryId: session.category_id,
+            language: session.language,
             isHost: session.creator_id === req.user.id,
             questions,
             participants: participantsRes.rows.map(p => ({
@@ -228,8 +229,8 @@ router.post('/start', verifyToken, async (req, res) => {
 
         // 3. Update session
         await query(
-            'UPDATE group_sessions SET status = \'active\', category_id = $1, mcq_data = $2 WHERE id = $3',
-            [categoryId, JSON.stringify([firstQuestion]), code]
+            'UPDATE group_sessions SET status = \'active\', category_id = $1, language = $2, mcq_data = $3 WHERE id = $4',
+            [categoryId, language, JSON.stringify([firstQuestion]), code]
         );
 
         res.json({ message: 'Battle started', questions: [firstQuestion] });
@@ -244,7 +245,7 @@ router.post('/start', verifyToken, async (req, res) => {
 // @access  Private
 router.post('/:code/next', verifyToken, async (req, res) => {
     const { code } = req.params;
-    const { language = 'English', currentCount = 0 } = req.body; // currentCount is how many questions the client currently has
+    const { currentCount = 0 } = req.body; // Ignore incoming language, use DB session language
 
     try {
         const sessionRes = await query('SELECT * FROM group_sessions WHERE id = $1', [code]);
@@ -263,12 +264,13 @@ router.post('/:code/next', verifyToken, async (req, res) => {
             return res.json({ message: 'Session complete', questions: currentQuestions });
         }
 
-        // 2. Resolve topic for AI (Preferring Category Name if context missing in session for now)
+        // 2. Resolve topic and language for AI
+        const sessionLang = session.language || 'English';
         const catRes = await query('SELECT name FROM categories WHERE id = $1', [session.category_id]);
         const topic = catRes.rows[0]?.name || 'General Knowledge';
 
-        console.log(`[GroupBattle] NEXT: Generating question ${currentQuestions.length + 1} for: ${topic}`);
-        const generatedMcqs = await generateMCQInitial(topic, 1, language);
+        console.log(`[GroupBattle] NEXT: Generating question ${currentQuestions.length + 1} for: ${topic} in ${sessionLang}`);
+        const generatedMcqs = await generateMCQInitial(topic, 1, sessionLang);
 
         if (!generatedMcqs || generatedMcqs.length === 0) {
             return res.status(500).json({ message: 'Failed to generate next question.' });
